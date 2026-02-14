@@ -1,0 +1,102 @@
+// ========================================
+// マスターデータ
+// ========================================
+
+export const INDUSTRIES = {
+  web: {
+    id: 'web',
+    name: 'Web制作',
+    icon: '💻',
+    description: '一人で始められる。スキルがあれば粗利は高いが、営業力がないと仕事が来ない。',
+    initialCost: 50000,
+    baseRevenue: { min: 0, max: 300000 },
+    baseCost: 30000,
+    revenueGrowthRate: 1.08,
+    difficulty: 2,
+    traits: {
+      highMargin: true,
+      inventoryBased: false,
+      locationBased: false,
+    }
+  },
+  cafe: {
+    id: 'cafe',
+    name: 'カフェ開業',
+    icon: '☕',
+    description: '物件・内装・設備で300万は飛ぶ。売上は立ちやすいが、原価と家賃に殺される。',
+    initialCost: 3000000,
+    baseRevenue: { min: 200000, max: 500000 },
+    baseCost: 250000,
+    revenueGrowthRate: 1.03,
+    difficulty: 4,
+    traits: {
+      highMargin: false,
+      inventoryBased: true,
+      locationBased: true,
+    }
+  },
+  ec: {
+    id: 'ec',
+    name: 'EC物販',
+    icon: '📦',
+    description: '仕入れて売る。シンプル。在庫管理と価格競争が命。',
+    initialCost: 500000,
+    baseRevenue: { min: 100000, max: 400000 },
+    baseCost: 150000,
+    revenueGrowthRate: 1.06,
+    difficulty: 3,
+    traits: {
+      highMargin: false,
+      inventoryBased: true,
+      locationBased: false,
+    }
+  },
+  consul: {
+    id: 'consul',
+    name: 'コンサル・講師業',
+    icon: '🎓',
+    description: '体ひとつで始められる。ただし「信用ゼロ」からのスタート。最初の1件が遠い。',
+    initialCost: 30000,
+    baseRevenue: { min: 0, max: 200000 },
+    baseCost: 20000,
+    revenueGrowthRate: 1.10,
+    difficulty: 3,
+    traits: {
+      highMargin: true,
+      inventoryBased: false,
+      locationBased: false,
+    }
+  }
+};
+
+export const COMPANY_TYPES = {
+  seisha: {
+    id: 'seisha',
+    name: '正社（せいしゃ）',
+    cost: 250000,
+    creditBonus: 10,
+    description: '信用度が高い。融資・大手取引に有利。',
+  },
+  ryakusha: {
+    id: 'ryakusha',
+    name: '略社（りゃくしゃ）',
+    cost: 100000,
+    creditBonus: 0,
+    description: '安く作れる。でも「略社って何？」と言われがち。',
+  }
+};
+
+export const TAX_RATES = {
+  corporate: { low: 0.14, high: 0.22, threshold: 8000000 },
+  citizenFlat: 70000,
+  business: 0.05,
+  transaction: 0.08,
+  transactionThreshold: 10000000,
+  socialInsuranceRate: 0.28,
+};
+
+export const FISCAL_MONTHS = [
+  { value: 3, label: '3月（一般的）', description: '多くの会社が採用する決算月' },
+  { value: 9, label: '9月', description: '設立月から遠い＝1期目が長くなる' },
+  { value: 12, label: '12月', description: '年末で区切る。わかりやすい' },
+];
