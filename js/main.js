@@ -5,7 +5,6 @@ const App = {
   pendingProject: null,
   hireCandidates: [],
   selectedHireIndex: null,
-  pendingCardQueue: [],
   currentEvent: null,
 
   /* ===== 初期化 ===== */
@@ -57,16 +56,16 @@ const App = {
       return;
     }
 
-    // 決算チェック（12月末）
+    // 決算チェック（12月を超えた）
     if (this.state.month > 12) {
       this.state.month = 1;
-      this.processSettlement();
+      this.doSettlement();
       return;
     }
 
     UI.render(UI.renderMonthStart(this.state));
 
-    // イベントチェック
+    // 固定イベントチェック
     const ev = getMonthEvent(this.state);
     if (ev) {
       this.currentEvent = ev;
@@ -87,79 +86,75 @@ const App = {
     const ev = this.currentEvent;
     const choice = ev.choices[index];
     const eff = choice.effect;
-
     let resultText = '';
 
-    // 成功判定
+    // 成功判定が必要な場合
     if (eff.successChance !== undefined) {
-      const roll = Math.random();
-      if (roll < eff.successChance) {
-        resultText = typeof choice.successText === 'function' ? choice.successText(this.state) : choice.successText;
+      if (Math.random() < eff.successChance) {
+        resultText = typeof choice.successText === 'function'
+          ? choice.successText(this.state) : choice.successText;
         if (eff.creditBonus) this.state.credit += eff.creditBonus;
         if (eff.cashInflow) this.state.balance += eff.cashInflow;
         if (eff.bigProject) {
-          // 大型案件を直接追加
-          const proj = {
+          this.state.projects.push({
             name: 'トーキョ大手企業 - サイトリニューアル',
-            client: 'トーキョ大手企業',
-            icon: '🏢',
-            price: 2000000,
-            monthsTotal: 3,
-            monthsLeft: 3,
-            status: 'active',
-          };
-          this.state.projects.push(proj);
-          this.state.periodRevenue += 0; // 完了時に計上
+            client: 'トーキョ大手企業', icon: '🏢',
+            price: 2000000, monthsTotal: 3, monthsLeft: 3,
+            status: 'active', recurring: false,
+          });
         }
       } else {
-        resultText = typeof choice.failText === 'function' ? choice.failText(this.state) : (choice.failText || '失敗…');
+        resultText = typeof choice.failText === 'function'
+          ? choice.failText(this.state) : (choice.failText || '失敗…');
         if (eff.creditEffect) this.state.credit += eff.creditEffect;
+        // 失敗時でも信用+3（大型案件落選時など）
+        if (eff.bigProject) this.state.credit += 3;
       }
     } else {
-      resultText = typeof choice.successText === 'function' ? choice.successText(this.state) : choice.successText;
+      resultText = typeof choice.successText === 'function'
+        ? choice.successText(this.state) : choice.successText;
       if (eff.creditBonus) this.state.credit += eff.creditBonus;
       if (eff.cashInflow) this.state.balance += eff.cashInflow;
       if (eff.exitOption) this.state.exitOption = true;
     }
 
-    // HP
     if (eff.hpCost) this.state.hp = Math.max(0, this.state.hp - eff.hpCost);
     if (eff.hpRecover) this.state.hp = Math.min(this.state.maxHp, this.state.hp + eff.hpRecover);
-
-    // コスト
     if (eff.cost) {
       this.state.balance -= eff.cost;
       this.state.periodExpense += eff.cost;
     }
 
-    // 従業員給料
+    // 従業員関連
     if (eff.salaryUp && this.state.employees.length > 0) {
       this.state.employees[0].salary += eff.salaryUp;
-      this.state.employees[0].satisfaction = Math.min(100, this.state.employees[0].satisfaction + (eff.satisfactionUp || 0));
-    }
-    if (eff.satisfactionDown && this.state.employees.length > 0) {
-      this.state.employees[0].satisfaction = Math.max(0, this.state.employees[0].satisfaction - eff.satisfactionDown);
-    }
-    if (eff.satisfactionUp && !eff.salaryUp && this.state.employees.length > 0) {
-      this.state.employees[0].satisfaction = Math.min(100, this.state.employees[0].satisfaction + eff.satisfactionUp);
-    }
-
-    // 遅延
-    if (eff.delayMonths) {
-      // 売掛金の入金を遅らせる
-      if (this.state.receivables.length > 0) {
-        this.state.receivables[this.state.receivables.length - 1].dueMonth += eff.delayMonths;
+      if (eff.satisfactionUp) {
+        this.state.employees[0].satisfaction = Math.min(100,
+          this.state.employees[0].satisfaction + eff.satisfactionUp);
       }
     }
+    if (eff.satisfactionDown && this.state.employees.length > 0) {
+      this.state.employees[0].satisfaction = Math.max(0,
+        this.state.employees[0].satisfaction - eff.satisfactionDown);
+    }
+    if (eff.satisfactionUp && !eff.salaryUp && this.state.employees.length > 0) {
+      this.state.employees[0].satisfaction = Math.min(100,
+        this.state.employees[0].satisfaction + eff.satisfactionUp);
+    }
 
-    // 追徴課税
+    if (eff.delayMonths && this.state.receivables.length > 0) {
+      this.state.receivables[this.state.receivables.length - 1].dueMonth += eff.delayMonths;
+    }
+
     if (eff.auditPenaltyChance && Math.random() < eff.auditPenaltyChance) {
       this.state.balance -= 150000;
+      this.state.periodExpense += 150000;
       resultText += '\n\n追徴課税: Ƴ150,000…';
     }
 
     // イベント結果表示
-    document.querySelector('.event-overlay').outerHTML = '';
+    const overlay = document.querySelector('.event-overlay');
+    if (overlay) overlay.remove();
     UI.append(UI.renderEventResult(resultText));
   },
 
@@ -183,7 +178,8 @@ const App = {
   },
 
   closeEvent() {
-    document.querySelector('.event-overlay').outerHTML = '';
+    const overlay = document.querySelector('.event-overlay');
+    if (overlay) overlay.remove();
     this.currentEvent = null;
   },
 
@@ -212,26 +208,24 @@ const App = {
 
   processNextCard() {
     if (this.state.currentCardIndex >= this.state.selectedCards.length) {
-      // すべてのカード処理完了 → 制作 → 月末
       this.processProductionPhase();
       return;
     }
-
     const cardIndex = this.state.selectedCards[this.state.currentCardIndex];
     const card = this.state.hand[cardIndex];
-
-    // コスト選択画面
     UI.render(UI.renderCostSelect(this.state, card));
     UI.updateStatusBar(this.state);
   },
 
+  /* ===== コスト選択実行 ===== */
   selectCostOption(optIndex) {
     const cardIndex = this.state.selectedCards[this.state.currentCardIndex];
     const card = this.state.hand[cardIndex];
     const opt = card.costOptions[optIndex];
 
     // HP消費
-    const hpCost = card.hpCostByOption ? card.hpCostByOption[optIndex] : card.hpCost;
+    const hpCost = card.hpCostByOption
+      ? card.hpCostByOption[optIndex] : card.hpCost;
     this.state.hp = Math.max(0, this.state.hp - hpCost);
 
     // コスト支払い
@@ -242,27 +236,24 @@ const App = {
 
     const results = [];
 
-    // --- カードタイプ別処理 ---
-
-    // 営業系：案件生成
+    /* --- 営業系 --- */
     if (card.category === 'sales' && opt.projectChance !== undefined) {
-      const roll = Math.random();
-      if (roll < opt.projectChance + (this.state.credit / 200)) {
+      const chance = Math.min(0.95, opt.projectChance + (this.state.credit / 200));
+      if (Math.random() < chance) {
         const proj = generateProject(this.state, opt.projectTier || 0);
         this.pendingProject = proj;
         this.state.currentCardIndex++;
-        // 見積もり画面へ
         UI.render(UI.renderQuoteInput(this.state, proj));
         UI.updateStatusBar(this.state);
-        return;
+        return; // 見積もり画面に飛ぶので、ここで中断
       } else {
         results.push({ text: '😔 今回は案件につながらなかった…', type: 'negative' });
-        results.push({ text: '信用スコアが少し上がった (+1)', type: 'neutral' });
-        this.state.credit += 1;
+        this.state.credit = Math.min(100, this.state.credit + 1);
+        results.push({ text: '信用スコア +1', type: 'neutral' });
       }
     }
 
-    // 投資系
+    /* --- 投資系 --- */
     if (card.category === 'invest' && opt.effect) {
       if (opt.effect.capacityBonus) {
         this.state.capacityBonus += opt.effect.capacityBonus;
@@ -279,11 +270,16 @@ const App = {
       if (card.oneTime) this.state.usedOneTimeCards.push(card.id);
     }
 
-    // 人材系：採用
+    /* --- 人材：採用 --- */
     if (card.id === 'hr_recruit') {
-      const roll = Math.random();
-      if (roll < opt.hireChance) {
+      if (Math.random() < opt.hireChance) {
         this.state.currentCardIndex++;
+        // 候補者選択画面へ
+        const hired = this.state.employees.map(e => e.name);
+        this.hireCandidates = DATA.EMPLOYEE_TEMPLATES
+          .filter(t => !hired.includes(t.name))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 2);
         UI.render(UI.renderHireSelect(this.state));
         UI.updateStatusBar(this.state);
         return;
@@ -292,38 +288,338 @@ const App = {
       }
     }
 
-    // 人材系：育成
+    /* --- 人材：育成 --- */
     if (card.id === 'hr_training' && opt.effect && opt.effect.skillUp) {
       if (this.state.employees.length > 0) {
-        this.state.employees[0].skill = (this.state.employees[0].skill || 0) + opt.effect.skillUp;
-        this.state.employees[0].satisfaction = Math.min(100, this.state.employees[0].satisfaction + 5);
-        results.push({ text: `${this.state.employees[0].name}のスキルが上がった！`, type: 'positive' });
+        const emp = this.state.employees[0];
+        emp.skill = (emp.skill || 0) + opt.effect.skillUp;
+        emp.satisfaction = Math.min(100, emp.satisfaction + 5);
+        results.push({ text: `${emp.name}のスキルが上がった！`, type: 'positive' });
       }
     }
 
-    // 税理士
+    /* --- 税理士 --- */
     if (card.id === 'tax_accountant' || card.id === 'tax_accountant_adv') {
-      this.state.accountant = opt.effect.accountant;
-      results.push({ text: `${DATA.ACCOUNTANTS[opt.effect.accountant].name}と契約しました！`, type: 'positive' });
-      if (card.id === 'tax_accountant') results.push({ text: '月次P/Lが見えるようになりました', type: 'positive' });
-      if (card.id === 'tax_accountant_adv') results.push({ text: 'B/Sも表示されます', type: 'positive' });
+      const accKey = opt.effect.accountant;
+      this.state.accountant = accKey;
+      const accName = DATA.ACCOUNTANTS[accKey].name;
+      results.push({ text: `${accName}と契約しました！`, type: 'positive' });
+      if (accKey === 'basic') results.push({ text: '月次P/Lが見えるようになりました', type: 'positive' });
+      if (accKey === 'advanced') results.push({ text: 'B/Sも表示されます', type: 'positive' });
     }
 
-    // 節税系
-    if ((card.id === 'tax_shokibo' || card.id === 'tax_car') && opt.effect) {
-      if (opt.effect.monthlyExpense) this.state.extraMonthlyExpense += opt.effect.monthlyExpense;
-      if (opt.effect.taxDeduction) this.state.annualTaxDeduction += opt.effect.taxDeduction;
-      if (opt.effect.creditBonus) this.state.credit += opt.effect.creditBonus;
-      if (opt.effect.auditRisk) this.state.auditRisk += opt.effect.auditRisk;
-      results.push({ text: '節税策を導入しました', type: 'positive' });
-      if (opt.effect.auditRisk) results.push({ text: '⚠ 税務調査リスクが上昇', type: 'negative' });
+    /* --- 節税 --- */
+    if (card.id === 'tax_shokibo' || card.id === 'tax_car') {
+      if (opt.effect) {
+        if (opt.effect.monthlyExpense)
+          this.state.extraMonthlyExpense += opt.effect.monthlyExpense;
+        if (opt.effect.taxDeduction)
+          this.state.annualTaxDeduction += opt.effect.taxDeduction;
+        if (opt.effect.creditBonus)
+          this.state.credit += opt.effect.creditBonus;
+        if (opt.effect.auditRisk)
+          this.state.auditRisk += opt.effect.auditRisk;
+        results.push({ text: '節税策を導入しました', type: 'positive' });
+        if (opt.effect.auditRisk) {
+          results.push({ text: '⚠ 税務調査リスクが上昇', type: 'negative' });
+        }
+      }
       if (card.oneTime) this.state.usedOneTimeCards.push(card.id);
     }
 
-    // 融資
+    /* --- 融資 --- */
     if (card.id === 'special_loan') {
-      const approval = opt.approvalBase + (this.state.credit / 200) + (this.state.totalRevenue > 0 ? 0.1 : 0);
-      if (Math.random() < approval) {
+      const approvalRate = Math.min(0.9,
+        opt.approvalBase + (this.state.credit / 200)
+        + (this.state.totalRevenue > 0 ? 0.1 : 0));
+      if (Math.random() < approvalRate) {
         this.state.balance += opt.loanAmount;
-        this.state.loans.push({ monthlyRepay: opt.monthlyRepay, remainingMonths: 36 });
-        results.push({ text: `融資承認！Ƴ${opt.loanAmount.toLocaleString(
+        this.state.loans.push({
+          monthlyRepay: opt.monthlyRepay,
+          remainingMonths: 36,
+        });
+        results.push({ text: `🎉 融資承認！Ƴ${opt.loanAmount.toLocaleString()} 入金`, type: 'positive' });
+        results.push({ text: `毎月の返済: Ƴ${opt.monthlyRepay.toLocaleString()} × 36回`, type: 'neutral' });
+      } else {
+        results.push({ text: '😔 融資審査に落ちた…信用を上げよう', type: 'negative' });
+      }
+    }
+
+    /* --- 助成金 --- */
+    if (card.id === 'special_subsidy') {
+      if (Math.random() < opt.approvalChance) {
+        this.state.balance += opt.subsidyAmount;
+        results.push({ text: `🎉 助成金採択！Ƴ${opt.subsidyAmount.toLocaleString()} 入金`, type: 'positive' });
+      } else {
+        results.push({ text: '😔 不採択…また次の機会に', type: 'negative' });
+      }
+    }
+
+    /* --- 休息 --- */
+    if (card.id === 'rest') {
+      const recover = opt.hpRecover || 3;
+      this.state.hp = Math.min(this.state.maxHp, this.state.hp + recover);
+      results.push({ text: `体力が ${recover} 回復した（現在 ${this.state.hp}/${this.state.maxHp}）`, type: 'positive' });
+    }
+
+    // 結果がなければデフォルトメッセージ
+    if (results.length === 0) {
+      results.push({ text: `${card.name}を実行した`, type: 'neutral' });
+    }
+
+    this.state.currentCardIndex++;
+    UI.render(UI.renderCardResult(this.state, results));
+    UI.updateStatusBar(this.state);
+  },
+
+  /* ===== 見積もり送信 ===== */
+  submitQuote(price) {
+    const proj = this.pendingProject;
+    proj.price = price;
+    const winRate = calcWinRate(proj, price);
+
+    if (Math.random() < winRate) {
+      // 受注成功
+      const activeCount = this.state.projects.filter(
+        p => p.status === 'active').length;
+      const cap = getProductionCapacity(this.state);
+      proj.status = activeCount < Math.ceil(cap + 1) ? 'active' : 'waiting';
+      this.state.projects.push(proj);
+
+      const results = [
+        { text: `🎉 受注成功！`, type: 'positive' },
+        { text: `${proj.icon} ${proj.name}`, type: 'neutral' },
+        { text: `金額: Ƴ${price.toLocaleString()} ／ 工期: ${proj.monthsTotal}ヶ月`, type: 'neutral' },
+        { text: proj.status === 'active' ? '制作開始！' : 'バックログに追加（制作待ち）', type: 'neutral' },
+      ];
+      this.pendingProject = null;
+      UI.render(UI.renderCardResult(this.state, results));
+    } else {
+      // 失注
+      const results = [
+        { text: `😔 失注…「他社にお願いすることにしました」`, type: 'negative' },
+        { text: `見積もりƴ${price.toLocaleString()}は高かったかもしれない`, type: 'neutral' },
+      ];
+      this.state.credit = Math.min(100, this.state.credit + 1);
+      this.pendingProject = null;
+      UI.render(UI.renderCardResult(this.state, results));
+    }
+    UI.updateStatusBar(this.state);
+  },
+
+  /* ===== カード結果後 ===== */
+  afterCardResult() {
+    this.processNextCard();
+  },
+
+  /* ===== 採用処理 ===== */
+  hireEmployee(candidateIndex) {
+    const candidate = this.hireCandidates[candidateIndex];
+    if (!candidate) {
+      this.processNextCard();
+      return;
+    }
+    this.selectedHireIndex = candidateIndex;
+    UI.render(UI.renderHireSalary(this.state, candidate));
+    UI.updateStatusBar(this.state);
+  },
+
+  confirmHire(salary) {
+    const candidate = this.hireCandidates[this.selectedHireIndex];
+    const satisfaction = salary >= candidate.baseSalary ? 70 : 40;
+
+    this.state.employees.push({
+      name: candidate.name,
+      label: candidate.label,
+      skill: 0,
+      salary: salary,
+      minSalary: candidate.minSalary,
+      maxSalary: candidate.maxSalary,
+      baseSalary: candidate.baseSalary,
+      satisfaction: satisfaction,
+    });
+
+    const results = [
+      { text: `🎉 ${candidate.name}（${candidate.label}）を採用しました！`, type: 'positive' },
+      { text: `月給: Ƴ${salary.toLocaleString()}`, type: 'neutral' },
+      { text: `制作キャパが増加しました`, type: 'positive' },
+    ];
+    if (salary < candidate.baseSalary) {
+      results.push({ text: `⚠ 希望より低い給料のため、満足度がやや低い`, type: 'negative' });
+    }
+
+    this.hireCandidates = [];
+    this.selectedHireIndex = null;
+    UI.render(UI.renderCardResult(this.state, results));
+    UI.updateStatusBar(this.state);
+  },
+
+  /* ===== 制作フェーズ ===== */
+  processProductionPhase() {
+    const prodLog = processProduction(this.state);
+    const monthEndLog = processMonthEnd(this.state);
+
+    // 従業員退職チェック
+    const quitters = [];
+    for (let i = this.state.employees.length - 1; i >= 0; i--) {
+      const emp = this.state.employees[i];
+      const quitChance = emp.satisfaction < 20 ? 0.4
+        : emp.satisfaction < 40 ? 0.15
+        : emp.satisfaction < 60 ? 0.05 : 0;
+      if (Math.random() < quitChance) {
+        quitters.push(emp.name);
+        this.state.employees.splice(i, 1);
+      }
+    }
+
+    // 制作ログ + 月末ログを結合して表示
+    let combinedHtml = '';
+
+    // 制作フェーズ
+    if (prodLog.length > 0) {
+      combinedHtml += `
+        <div class="panel">
+          <div class="panel-title">🔨 制作フェーズ</div>
+          ${prodLog.map(l => `<div class="${l.type}" style="font-size:0.88rem;margin-bottom:4px;">${l.text}</div>`).join('')}
+        </div>
+      `;
+    }
+
+    // 退職通知
+    if (quitters.length > 0) {
+      combinedHtml += `
+        <div class="panel" style="border-left:3px solid var(--red);">
+          <div class="panel-title" style="color:var(--red);">😢 退職</div>
+          ${quitters.map(name => `<div style="font-size:0.88rem;">${name}が退職しました…「もう限界です」</div>`).join('')}
+        </div>
+      `;
+    }
+
+    // 月末処理
+    const hasAccountant = this.state.accountant !== 'none';
+    let monthEndHtml;
+    if (hasAccountant) {
+      monthEndHtml = monthEndLog.map(item => {
+        const parts = item.text.split(':');
+        const label = parts[0];
+        const value = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+        return `<div class="pl-row"><span>${label}</span><span class="${item.type === 'positive' ? 'positive' : item.type === 'negative' || item.type === 'danger' ? 'negative' : ''}">${value}</span></div>`;
+      }).join('');
+    } else {
+      const totalLine = monthEndLog.find(l => l.text.includes('合計支出'));
+      const balanceLine = monthEndLog.find(l => l.text.includes('残高'));
+      const incomeLines = monthEndLog.filter(l => l.type === 'positive');
+      monthEndHtml = `
+        ${incomeLines.map(l => {
+          const parts = l.text.split(':');
+          return `<div class="pl-row"><span>${parts[0]}</span><span class="positive">${parts[1] || ''}</span></div>`;
+        }).join('')}
+        ${totalLine ? `<div class="pl-row total"><span>合計支出</span><span class="negative">${totalLine.text.split(':')[1] || ''}</span></div>` : ''}
+        ${balanceLine ? `<div class="pl-row total"><span>残高</span><span class="${this.state.balance < 0 ? 'negative' : ''}">${balanceLine.text.split(':')[1] || ''}</span></div>` : ''}
+        <div style="font-size:0.78rem;color:var(--text2);margin-top:8px;">※ 税理士と契約すると内訳が見えます</div>
+      `;
+    }
+
+    combinedHtml += `
+      <div class="panel">
+        <div class="panel-title">📊 ${this.state.period}期目 ${this.state.month}月 月末処理</div>
+        ${monthEndHtml}
+      </div>
+    `;
+
+    UI.render(combinedHtml + `<button class="btn btn-block" onclick="App.nextMonth()">翌月へ</button>`);
+    UI.updateStatusBar(this.state);
+  },
+
+  /* ===== 翌月へ ===== */
+  nextMonth() {
+    this.state.month++;
+    this.state.totalMonths++;
+    this.showMonthStart();
+  },
+
+  /* ===== 決算 ===== */
+  doSettlement() {
+    const result = processSettlement(this.state);
+    UI.render(UI.renderSettlement(this.state, result));
+    UI.updateStatusBar(this.state);
+  },
+
+  afterSettlement() {
+    if (this.state.period >= 5) {
+      // エンディング
+      const ending = calcEnding(this.state);
+      UI.render(UI.renderEnding(this.state, ending));
+      const bar = document.getElementById('status-bar');
+      bar.classList.remove('active');
+      return;
+    }
+
+    // 次の期
+    this.state.period++;
+    this.state.periodRevenue = 0;
+    this.state.periodExpense = 0;
+    this.state.annualTaxDeduction = 0; // 年度ごとリセット（再設定が必要）
+
+    UI.render(UI.renderPeriodSetup(this.state));
+    UI.updateStatusBar(this.state);
+  },
+
+  /* ===== 期首設定確定 ===== */
+  confirmPeriodSetup() {
+    // 役員報酬
+    const salaryInput = document.querySelector('.slider-section input');
+    if (salaryInput) {
+      this.state.salary = Number(salaryInput.value);
+    }
+
+    // 従業員給料
+    const empInputs = document.querySelectorAll('[data-emp-index]');
+    empInputs.forEach(input => {
+      const idx = Number(input.dataset.empIndex);
+      if (this.state.employees[idx]) {
+        const oldSalary = this.state.employees[idx].salary;
+        const newSalary = Number(input.value);
+        this.state.employees[idx].salary = newSalary;
+
+        // 満足度調整
+        if (newSalary > oldSalary) {
+          this.state.employees[idx].satisfaction = Math.min(100,
+            this.state.employees[idx].satisfaction + 10);
+        } else if (newSalary < oldSalary) {
+          this.state.employees[idx].satisfaction = Math.max(0,
+            this.state.employees[idx].satisfaction - 15);
+        }
+      }
+    });
+
+    this.state.month = 1;
+    this.showMonthStart();
+  },
+
+  /* ===== リスタート ===== */
+  restart() {
+    this.state = null;
+    this.setupData = {};
+    this.pendingProject = null;
+    this.hireCandidates = [];
+    this.selectedHireIndex = null;
+    this.currentEvent = null;
+    const bar = document.getElementById('status-bar');
+    bar.classList.remove('active');
+    UI.render(UI.renderIntro());
+  },
+
+  /* ===== SNSシェア ===== */
+  shareResult(rank, title, score) {
+    const text = encodeURIComponent(
+      `ナホン国で5年間起業してみた。\n結果: ${rank}ランク「${title}」\nスコア: ${score}\n#起業しろ #ナホン経営記`
+    );
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+  },
+};
+
+/* ===== 起動 ===== */
+document.addEventListener('DOMContentLoaded', () => {
+  App.init();
+});
