@@ -78,10 +78,18 @@ const UI = {
   /* ========== セットアップ ========== */
   renderIndustrySelect() {
     const industries = Object.values(DATA.INDUSTRIES);
+    const difficultyStars = (d) => '★'.repeat(d) + '☆'.repeat(5 - d);
     const choices = industries.map(ind => `
-      <button class="choice-btn" onclick="App.selectIndustry('${ind.id}')">
-        <div class="choice-title">${ind.icon} ${ind.name}</div>
-        <div class="choice-desc">${ind.description}<br>初期費用: Ƴ${ind.initialCost.toLocaleString()} ／ 月間経費: Ƴ${ind.monthlyCost.toLocaleString()}</div>
+      <button class="choice-btn industry-btn" onclick="App.selectIndustry('${ind.id}')">
+        <div class="choice-header">
+          <span class="choice-title">${ind.icon} ${ind.name}</span>
+          <span class="difficulty">難易度: ${difficultyStars(ind.difficulty)}</span>
+        </div>
+        <div class="choice-desc">${ind.description}</div>
+        <div class="industry-stats">
+          <span>初期費用: Ƴ${ind.initialCost.toLocaleString()}</span>
+          <span>月間経費: Ƴ${ind.monthlyCost.toLocaleString()}</span>
+        </div>
       </button>
     `).join('');
 
@@ -220,14 +228,33 @@ const UI = {
               }
               return '<span></span>';
             }).join('');
+
+            // 満足度に応じたステータス
+            let satStatus = '';
+            if (emp.satisfaction >= 70) {
+              satStatus = '<span class="sat-status good">好調</span>';
+            } else if (emp.satisfaction >= 40) {
+              satStatus = '<span class="sat-status mid">普通</span>';
+            } else {
+              satStatus = '<span class="sat-status bad">不満 ⚠</span>';
+            }
+
+            // スキル効果の説明
+            const skillKey = emp.label === 'デザイナー' ? 'designer'
+              : emp.label === 'エンジニア' ? 'engineer'
+              : emp.label === 'マーケター' ? 'marketer'
+              : 'generalist';
+            const skillDesc = DATA.EMPLOYEE_SKILLS[skillKey]?.description || '';
+
             return `
-              <div class="employee-card">
+              <div class="employee-card ${emp.satisfaction < 40 ? 'warning' : ''}">
                 <div class="emp-info">
                   <div class="emp-name">${emp.name}（${emp.label}）</div>
                   <div class="emp-detail">給料: Ƴ${emp.salary.toLocaleString()}/月</div>
+                  <div class="emp-skill">${skillDesc}</div>
                 </div>
-                <div>
-                  <div style="font-size:0.7rem;color:var(--text2);text-align:right;">満足度</div>
+                <div class="emp-status">
+                  ${satStatus}
                   <div class="satisfaction-bar">${satBlocks}</div>
                 </div>
               </div>
@@ -252,6 +279,38 @@ const UI = {
       `
       : '';
 
+    // 融資返済状況
+    const loansHtml = state.loans.length > 0
+      ? `
+        <div class="panel loans-panel">
+          <div class="panel-title">🏦 融資返済</div>
+          ${state.loans.map(loan => {
+            const progress = ((36 - loan.remainingMonths) / 36) * 100;
+            const remainingTotal = loan.monthlyRepay * loan.remainingMonths;
+            return `
+              <div class="loan-item">
+                <div class="loan-item-header">
+                  <span>${loan.icon || '🏦'} ${loan.name || '融資'}</span>
+                  <span class="loan-remaining">残${loan.remainingMonths}ヶ月</span>
+                </div>
+                <div class="loan-item-detail">
+                  <span>月々返済: Ƴ${loan.monthlyRepay.toLocaleString()}</span>
+                  <span>残債: Ƴ${remainingTotal.toLocaleString()}</span>
+                </div>
+                <div class="progress-bar loan-progress">
+                  <div class="fill" style="width:${progress}%"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+          <div class="loan-summary">
+            <span>今月の返済合計</span>
+            <span class="negative">Ƴ${state.loans.reduce((sum, l) => sum + l.monthlyRepay, 0).toLocaleString()}</span>
+          </div>
+        </div>
+      `
+      : '';
+
     return `
       <div class="panel">
         <div class="panel-title">📅 ${state.period}期目 ${state.month}月</div>
@@ -260,6 +319,7 @@ const UI = {
       ${projectsHtml}
       ${empHtml}
       ${recvHtml}
+      ${loansHtml}
       <button class="btn btn-block" onclick="App.startCardPhase()">カードを引く</button>
     `;
   },
@@ -348,7 +408,7 @@ const UI = {
               oninput="UI.updateQuoteUI(this.value, ${project.basePrice})">
             <span class="quote-value" id="quote-val">Ƴ${project.basePrice.toLocaleString()}</span>
           </div>
-          <div class="quote-prob" id="quote-prob">受注確率: ${Math.round(calcWinRate(project, project.basePrice) * 100)}%</div>
+          <div class="quote-prob" id="quote-prob">受注確率: ${Math.round(calcWinRate(project, project.basePrice, state) * 100)}%</div>
         </div>
         ${accAdvice}
         <button class="btn btn-block" style="margin-top:12px" onclick="App.submitQuote(Number(document.querySelector('.quote-input-row input').value))">見積もり送付</button>
@@ -359,9 +419,14 @@ const UI = {
   updateQuoteUI(val, basePrice) {
     const v = Number(val);
     document.getElementById('quote-val').textContent = 'Ƴ' + v.toLocaleString();
-    // 受注確率を概算で表示
+    // 受注確率を概算で表示（信用スコアボーナス込み）
     const ratio = v / basePrice;
     let rate = 1.0 - (ratio - 0.5) * 0.6;
+    // 信用スコアボーナス（最大+15%）
+    if (App.state) {
+      const creditBonus = (App.state.credit / 100) * 0.15;
+      rate += creditBonus;
+    }
     rate = Math.max(0.05, Math.min(0.95, rate));
     const pct = Math.round(rate * 100);
     const probEl = document.getElementById('quote-prob');
@@ -551,9 +616,21 @@ const UI = {
     if (hasAccountant) {
       const acc = DATA.ACCOUNTANTS[state.accountant];
       let advice = '';
-      if (result.profit < 0) advice = '赤字ですが、繰越欠損金として来期以降に活かせます。まずは売上を伸ばしましょう。';
-      else if (result.totalTax > result.profit * 0.4) advice = '税負担が重いですね。節税カードの活用を検討しましょう。';
-      else advice = '順調ですね！来期はさらなる成長を目指しましょう。';
+
+      // 状況に応じたアドバイスを選択
+      if (state.period === 1) {
+        advice = DATA.ACCOUNTANT_COMMENTS.first_year;
+      } else if (result.profit < 0) {
+        advice = DATA.ACCOUNTANT_COMMENTS.loss;
+      } else if (result.profit > 0 && state.period === 2 && state.lossCarryforward === 0) {
+        advice = DATA.ACCOUNTANT_COMMENTS.first_black;
+      } else if (result.totalTax > result.profit * 0.4) {
+        advice = DATA.ACCOUNTANT_COMMENTS.tax_heavy;
+      } else if (result.profit > 5000000) {
+        advice = DATA.ACCOUNTANT_COMMENTS.profit_high;
+      } else {
+        advice = DATA.ACCOUNTANT_COMMENTS.profit_low;
+      }
 
       adviceHtml = `
         <div class="advisor-box">
@@ -712,6 +789,128 @@ const UI = {
         </div>
       </div>
     `;
+  },
+
+  /* ========== 融資選択 ========== */
+  renderLoanSelect(state) {
+    const loanTypes = Object.values(DATA.LOAN_TYPES);
+
+    const loansHtml = loanTypes.map(loan => {
+      const eligible = loan.condition(state);
+      const approval = eligible ? calcLoanApproval(state, loan.id, loan.maxAmount / 2) : null;
+
+      let statusClass = '';
+      let statusText = '';
+      if (!eligible) {
+        statusClass = 'disabled';
+        statusText = '条件未達';
+      } else if (approval.rate >= 0.6) {
+        statusClass = 'good';
+        statusText = '審査通りやすい';
+      } else if (approval.rate >= 0.3) {
+        statusClass = 'mid';
+        statusText = '審査普通';
+      } else {
+        statusClass = 'hard';
+        statusText = '審査厳しい';
+      }
+
+      return `
+        <div class="loan-option ${statusClass}" onclick="${eligible ? `App.selectLoanType('${loan.id}')` : ''}">
+          <div class="loan-header">
+            <span class="loan-icon">${loan.icon}</span>
+            <span class="loan-name">${loan.name}</span>
+            <span class="loan-status ${statusClass}">${statusText}</span>
+          </div>
+          <div class="loan-details">
+            <div class="loan-detail-row">
+              <span>上限額</span>
+              <span>Ƴ${loan.maxAmount.toLocaleString()}</span>
+            </div>
+            <div class="loan-detail-row">
+              <span>金利</span>
+              <span>${(loan.interestRate * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+          <div class="loan-desc">${loan.description}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="panel">
+        <div class="panel-title">🏦 融資先を選択</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">
+          どの金融機関に申し込む？
+        </p>
+        <div class="loan-list">${loansHtml}</div>
+        <button class="btn btn-block btn-secondary" style="margin-top:12px" onclick="App.cancelLoan()">やめておく</button>
+      </div>
+    `;
+  },
+
+  renderLoanAmount(state, loan) {
+    const step = loan.maxAmount <= 3000000 ? 100000 : 500000;
+    const defaultAmount = Math.round(loan.maxAmount / 2 / step) * step;
+
+    return `
+      <div class="panel">
+        <div class="panel-title">${loan.icon} ${loan.name}</div>
+        <div class="loan-info-box">
+          <div class="loan-info-row">
+            <span>上限額</span>
+            <span>Ƴ${loan.maxAmount.toLocaleString()}</span>
+          </div>
+          <div class="loan-info-row">
+            <span>金利</span>
+            <span>${(loan.interestRate * 100).toFixed(1)}%（年）</span>
+          </div>
+        </div>
+        <div class="slider-section" style="margin-top:16px;">
+          <div class="slider-label">
+            <span>借入希望額</span>
+            <span id="loan-amount-val">Ƴ${defaultAmount.toLocaleString()}</span>
+          </div>
+          <input type="range" min="${step}" max="${loan.maxAmount}" step="${step}" value="${defaultAmount}"
+            oninput="UI.updateLoanUI(this.value, '${loan.id}')">
+          <div class="loan-calc" id="loan-calc">
+            <div class="loan-calc-row">
+              <span>月々返済（36回）</span>
+              <span id="loan-monthly">Ƴ${Math.round((defaultAmount * (1 + loan.interestRate * 3)) / 36).toLocaleString()}</span>
+            </div>
+            <div class="loan-calc-row">
+              <span>総返済額</span>
+              <span id="loan-total">Ƴ${Math.round(defaultAmount * (1 + loan.interestRate * 3)).toLocaleString()}</span>
+            </div>
+            <div class="loan-calc-row approval">
+              <span>審査通過率</span>
+              <span id="loan-approval">${Math.round(calcLoanApproval(state, loan.id, defaultAmount).rate * 100)}%</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-block" style="margin-top:12px" onclick="App.applyForLoan(Number(document.querySelector('.slider-section input').value))">この金額で申し込む</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="UI.render(UI.renderLoanSelect(App.state))">戻る</button>
+      </div>
+    `;
+  },
+
+  updateLoanUI(val, loanTypeId) {
+    const v = Number(val);
+    const loan = DATA.LOAN_TYPES[loanTypeId];
+    document.getElementById('loan-amount-val').textContent = 'Ƴ' + v.toLocaleString();
+
+    const interestTotal = Math.round(v * loan.interestRate * 3);
+    const totalRepay = v + interestTotal;
+    const monthlyRepay = Math.round(totalRepay / 36);
+
+    document.getElementById('loan-monthly').textContent = 'Ƴ' + monthlyRepay.toLocaleString();
+    document.getElementById('loan-total').textContent = 'Ƴ' + totalRepay.toLocaleString();
+
+    const approval = calcLoanApproval(App.state, loanTypeId, v);
+    const approvalEl = document.getElementById('loan-approval');
+    const pct = Math.round(approval.rate * 100);
+    approvalEl.textContent = pct + '%';
+    approvalEl.style.color = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--orange)' : 'var(--red)';
   },
 
   /* ========== ゲームオーバー ========== */

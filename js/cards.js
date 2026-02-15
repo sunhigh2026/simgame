@@ -10,9 +10,9 @@ const CARD_TEMPLATES = [
     hpCost: 2,
     period: [1,2,3,4,5],
     costOptions: [
-      { label: '控えめ', cost: 5000, projectChance: 0.3, projectTier: 0, desc: '名刺交換程度' },
-      { label: '標準', cost: 15000, projectChance: 0.55, projectTier: 1, desc: '資料持参で訪問' },
-      { label: '攻め', cost: 40000, projectChance: 0.75, projectTier: 2, desc: '手土産持って徹底訪問' },
+      { label: '控えめ', cost: 5000, projectChance: 0.2, projectTier: 0, desc: '名刺交換程度' },
+      { label: '標準', cost: 15000, projectChance: 0.4, projectTier: 1, desc: '資料持参で訪問' },
+      { label: '攻め', cost: 40000, projectChance: 0.6, projectTier: 2, desc: '手土産持って徹底訪問' },
     ],
   },
   {
@@ -38,9 +38,9 @@ const CARD_TEMPLATES = [
     hpCost: 1,
     period: [1,2,3,4,5],
     costOptions: [
-      { label: '軽く連絡', cost: 0, projectChance: 0.2, projectTier: 0, desc: 'メールだけ' },
-      { label: '食事に誘う', cost: 8000, projectChance: 0.4, projectTier: 1, desc: 'ランチおごり' },
-      { label: '会食セッティング', cost: 30000, projectChance: 0.6, projectTier: 2, desc: 'ディナーで本気トーク' },
+      { label: '軽く連絡', cost: 0, projectChance: 0.15, projectTier: 0, desc: 'メールだけ' },
+      { label: '食事に誘う', cost: 8000, projectChance: 0.35, projectTier: 1, desc: 'ランチおごり' },
+      { label: '会食セッティング', cost: 30000, projectChance: 0.55, projectTier: 2, desc: 'ディナーで本気トーク' },
     ],
   },
   {
@@ -52,9 +52,9 @@ const CARD_TEMPLATES = [
     hpCost: 1,
     period: [1,2,3,4,5],
     costOptions: [
-      { label: 'ゆるく投稿', cost: 0, projectChance: 0.1, projectTier: 0, desc: '週1投稿' },
-      { label: '毎日投稿', cost: 0, projectChance: 0.2, projectTier: 1, desc: '体力を使うが無料' },
-      { label: 'コンテンツ制作', cost: 20000, projectChance: 0.35, projectTier: 1, desc: 'ブログ+動画も' },
+      { label: 'ゆるく投稿', cost: 0, projectChance: 0.05, projectTier: 0, desc: '週1投稿' },
+      { label: '毎日投稿', cost: 0, projectChance: 0.15, projectTier: 1, desc: '体力を使うが無料' },
+      { label: 'コンテンツ制作', cost: 20000, projectChance: 0.3, projectTier: 1, desc: 'ブログ+動画も' },
     ],
     hpCostByOption: [1, 2, 3],
   },
@@ -224,6 +224,67 @@ const CARD_TEMPLATES = [
     ],
     oneTime: true,
   },
+  {
+    id: 'tax_safety',
+    name: '経営セーフティ共済',
+    category: 'tax',
+    icon: '🛡️',
+    description: '取引先倒産に備えつつ節税。年間最大Ƴ240万経費化',
+    hpCost: 0,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: '月5万', cost: 0, effect: { monthlyExpense: 50000, taxDeduction: 600000 }, desc: '年間Ƴ60万の経費化' },
+      { label: '月10万', cost: 0, effect: { monthlyExpense: 100000, taxDeduction: 1200000 }, desc: '年間Ƴ120万の経費化' },
+      { label: '月20万', cost: 0, effect: { monthlyExpense: 200000, taxDeduction: 2400000 }, desc: '年間Ƴ240万の経費化' },
+    ],
+    oneTime: true,
+  },
+  {
+    id: 'tax_housing',
+    name: '社宅制度を導入',
+    category: 'tax',
+    icon: '🏠',
+    description: '住居費の一部を会社負担に。オフィス契約後のみ',
+    hpCost: 0,
+    period: [2,3,4,5],
+    requiresOffice: true,
+    costOptions: [
+      { label: '家賃の30%を会社負担', cost: 0, effect: { monthlyExpense: 30000, taxDeduction: 360000 }, desc: '月Ƴ3万追加経費' },
+      { label: '家賃の50%を会社負担', cost: 0, effect: { monthlyExpense: 50000, taxDeduction: 600000 }, desc: '月Ƴ5万追加経費' },
+    ],
+    oneTime: true,
+  },
+  {
+    id: 'tax_trip',
+    name: '出張手当規程を作成',
+    category: 'tax',
+    icon: '✈️',
+    description: '出張手当を非課税で受け取れる',
+    hpCost: 0,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: '日帰りƳ2,000', cost: 5000, effect: { taxDeduction: 24000 }, desc: '規程作成費' },
+      { label: '宿泊Ƴ3,000', cost: 5000, effect: { taxDeduction: 36000 }, desc: '規程作成費' },
+      { label: '宿泊Ƴ5,000', cost: 5000, effect: { taxDeduction: 60000 }, desc: '規程作成費（高め設定）' },
+    ],
+    oneTime: true,
+  },
+  {
+    id: 'tax_bonus',
+    name: '決算賞与を出す',
+    category: 'tax',
+    icon: '🎁',
+    description: '従業員への賞与で経費化＆満足度UP',
+    hpCost: 0,
+    period: [1,2,3,4,5],
+    requiresEmployee: true,
+    settlementOnly: true,
+    costOptions: [
+      { label: '1人Ƴ10万', cost: 100000, effect: { satisfactionUp: 10 }, desc: '少額の賞与' },
+      { label: '1人Ƴ30万', cost: 300000, effect: { satisfactionUp: 20 }, desc: '標準的な賞与' },
+      { label: '1人Ƴ50万', cost: 500000, effect: { satisfactionUp: 30 }, desc: '高額の賞与' },
+    ],
+  },
 
   // === 特殊系 ===
   {
@@ -231,13 +292,12 @@ const CARD_TEMPLATES = [
     name: '融資を申し込む',
     category: 'special',
     icon: '🏦',
-    description: '銀行融資で資金調達',
+    description: '金融機関から資金調達',
     hpCost: 2,
     period: [1,2,3,4,5],
+    isLoanCard: true,  // 特殊フラグ：金融機関選択フローへ
     costOptions: [
-      { label: 'Ƴ100万', cost: 0, loanAmount: 1000000, monthlyRepay: 30000, approvalBase: 0.5, desc: '返済月Ƴ3万×36回' },
-      { label: 'Ƴ300万', cost: 0, loanAmount: 3000000, monthlyRepay: 85000, approvalBase: 0.35, desc: '返済月Ƴ8.5万×36回' },
-      { label: 'Ƴ500万', cost: 0, loanAmount: 5000000, monthlyRepay: 145000, approvalBase: 0.2, desc: '返済月Ƴ14.5万×36回' },
+      { label: '金融機関を選ぶ', cost: 0, desc: '複数の金融機関から選択' },
     ],
   },
   {
@@ -271,6 +331,100 @@ const CARD_TEMPLATES = [
       { label: '旅行する', cost: 50000, hpRecover: 8, desc: '温泉旅行でリフレッシュ' },
     ],
   },
+
+  // === カフェ専用カード ===
+  {
+    id: 'cafe_menu',
+    name: '新メニュー開発',
+    category: 'sales',
+    icon: '🍰',
+    description: '新しいメニューで集客UP',
+    hpCost: 2,
+    period: [1,2,3,4,5],
+    industry: 'cafe',
+    costOptions: [
+      { label: '既存アレンジ', cost: 10000, projectChance: 0.4, projectTier: 0, desc: '材料費のみ' },
+      { label: '新規開発', cost: 50000, projectChance: 0.6, projectTier: 1, desc: '試作込み' },
+      { label: 'コラボメニュー', cost: 150000, projectChance: 0.75, projectTier: 2, desc: '有名店とコラボ' },
+    ],
+  },
+  {
+    id: 'cafe_sns',
+    name: 'SNS映え施策',
+    category: 'sales',
+    icon: '📸',
+    description: 'インスタ映えで来店数UP',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    industry: 'cafe',
+    costOptions: [
+      { label: '店内装飾', cost: 20000, effect: { creditBonus: 2 }, desc: 'フォトスポット設置' },
+      { label: 'インフルエンサー招待', cost: 80000, projectChance: 0.5, projectTier: 1, desc: 'PR投稿依頼' },
+      { label: '全面リニューアル', cost: 200000, effect: { creditBonus: 5 }, projectChance: 0.3, projectTier: 2, desc: '内装一新' },
+    ],
+  },
+  {
+    id: 'cafe_event',
+    name: 'イベント企画',
+    category: 'sales',
+    icon: '🎉',
+    description: 'ワークショップやイベントで集客',
+    hpCost: 3,
+    period: [2,3,4,5],
+    industry: 'cafe',
+    costOptions: [
+      { label: 'ミニワークショップ', cost: 10000, projectChance: 0.5, projectTier: 0, desc: 'ラテアート体験など' },
+      { label: '音楽ライブ', cost: 50000, projectChance: 0.6, projectTier: 1, desc: 'アコースティックライブ' },
+      { label: '大型イベント', cost: 150000, projectChance: 0.7, projectTier: 2, desc: 'フードフェス出店' },
+    ],
+  },
+
+  // === EC専用カード ===
+  {
+    id: 'ec_purchase',
+    name: '仕入れ交渉',
+    category: 'invest',
+    icon: '📋',
+    description: '仕入れ先と交渉して原価率改善',
+    hpCost: 2,
+    period: [1,2,3,4,5],
+    industry: 'ec',
+    costOptions: [
+      { label: '既存取引先に交渉', cost: 0, effect: { costReductionTemp: 0.05 }, successChance: 0.4, desc: '原価5%削減' },
+      { label: '新規仕入先開拓', cost: 30000, effect: { costReductionTemp: 0.1 }, successChance: 0.6, desc: '原価10%削減' },
+      { label: '直接取引', cost: 100000, effect: { costReductionTemp: 0.15 }, successChance: 0.5, desc: '原価15%削減' },
+    ],
+  },
+  {
+    id: 'ec_marketing',
+    name: '広告運用',
+    category: 'sales',
+    icon: '📣',
+    description: 'ネット広告で売上UP（在庫注意）',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    industry: 'ec',
+    costOptions: [
+      { label: 'SNS広告', cost: 30000, projectChance: 0.35, projectTier: 0, desc: '低予算で開始' },
+      { label: 'リスティング広告', cost: 100000, projectChance: 0.55, projectTier: 1, desc: '検索連動型' },
+      { label: '大規模キャンペーン', cost: 300000, projectChance: 0.7, projectTier: 2, desc: '複合メディア展開' },
+    ],
+  },
+  {
+    id: 'ec_product',
+    name: '新商品開発',
+    category: 'invest',
+    icon: '✨',
+    description: 'オリジナル商品で差別化',
+    hpCost: 3,
+    period: [2,3,4,5],
+    industry: 'ec',
+    costOptions: [
+      { label: 'バリエーション追加', cost: 50000, projectChance: 0.5, projectTier: 1, desc: '既存商品の派生' },
+      { label: 'OEM商品', cost: 200000, projectChance: 0.6, projectTier: 2, desc: '自社ブランド商品' },
+      { label: '完全オリジナル', cost: 500000, projectChance: 0.4, projectTier: 3, desc: '企画から製造まで' },
+    ],
+  },
 ];
 
 /* ========== デッキ構築 ========== */
@@ -280,6 +434,9 @@ function buildDeck(state) {
 
   // --- 条件フィルタ ---
   cards = cards.filter(card => {
+    // 業種フィルタ：業種指定があれば、その業種のみ
+    if (card.industry && card.industry !== state.industry) return false;
+
     // 税理士：すでに契約済みなら除外
     if (card.id === 'tax_accountant' && state.accountant !== 'none') return false;
     if (card.id === 'tax_accountant_adv' && state.accountant !== 'basic') return false;

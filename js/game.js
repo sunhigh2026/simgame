@@ -82,7 +82,12 @@ function createInitialState(industry, companyType, capital, salary) {
 function getProductionCapacity(state) {
   let cap = DATA.PRODUCTION_CAPACITY_SOLO + state.capacityBonus;
   for (const emp of state.employees) {
-    cap += DATA.PRODUCTION_CAPACITY_PER_EMPLOYEE * (1 + (emp.skill || 0));
+    let empCap = DATA.PRODUCTION_CAPACITY_PER_EMPLOYEE * (1 + (emp.skill || 0));
+    // エンジニアボーナス
+    if (emp.label === 'エンジニア') {
+      empCap += DATA.EMPLOYEE_SKILLS.engineer.effect.capacityBonus;
+    }
+    cap += empCap;
   }
   return cap;
 }
@@ -115,12 +120,25 @@ function generateProject(state, tier) {
 }
 
 /* ========== 受注確率計算 ========== */
-function calcWinRate(project, quotePrice) {
+function calcWinRate(project, quotePrice, state) {
   const base = project.basePrice;
   const ratio = quotePrice / base;
 
   // 相場の0.5倍→95%, 1.0倍→60%, 1.5倍→25%, 2.0倍→5%
   let rate = 1.0 - (ratio - 0.5) * 0.6;
+
+  if (state) {
+    // 信用スコアボーナス（最大+15%）
+    const creditBonus = (state.credit / 100) * 0.15;
+    rate += creditBonus;
+
+    // デザイナーボーナス（+10%）
+    const hasDesigner = state.employees.some(e => e.label === 'デザイナー');
+    if (hasDesigner) {
+      rate += DATA.EMPLOYEE_SKILLS.designer.effect.projectQuality;
+    }
+  }
+
   rate = Math.max(0.05, Math.min(0.95, rate));
 
   return rate;
@@ -170,9 +188,14 @@ function processMonthEnd(state) {
 
   // --- 運営経費 ---
   const ind = DATA.INDUSTRIES[state.industry];
-  const opCost = ind.monthlyCost + state.extraMonthlyExpense;
+  let opCost = ind.monthlyCost + state.extraMonthlyExpense;
+  // 事務スタッフによる経費削減
+  const hasGeneralist = state.employees.some(e => e.label === '事務');
+  if (hasGeneralist) {
+    opCost = Math.round(opCost * (1 - DATA.EMPLOYEE_SKILLS.generalist.effect.costReduction));
+  }
   totalDeduction += opCost;
-  log.push({ text: `運営経費: Ƴ${opCost.toLocaleString()}`, type: 'neutral' });
+  log.push({ text: `運営経費: Ƴ${opCost.toLocaleString()}${hasGeneralist ? '（事務効率化）' : ''}`, type: 'neutral' });
 
   // --- 税理士 ---
   const accCost = DATA.ACCOUNTANTS[state.accountant].cost;
@@ -357,6 +380,59 @@ function checkGameOver(state) {
     return { over: true, reason: '資金ショート（残高がƴ-50万を下回りました）' };
   }
   return { over: false };
+}
+
+/* ========== 融資審査ロジック ========== */
+function calcLoanApproval(state, loanType, amount) {
+  const loan = DATA.LOAN_TYPES[loanType];
+  if (!loan) return { eligible: false, rate: 0, reason: '不明な融資タイプ' };
+
+  // 条件チェック
+  if (!loan.condition(state)) {
+    let reason = '';
+    switch (loanType) {
+      case 'jfc':
+        reason = '創業2年以内の企業が対象です';
+        break;
+      case 'shinkin':
+        reason = '信用スコア30以上が必要です';
+        break;
+      case 'mega':
+        reason = '黒字2期以上の実績が必要です';
+        break;
+      default:
+        reason = '条件を満たしていません';
+    }
+    return { eligible: false, rate: 0, reason };
+  }
+
+  // 基本承認率
+  let rate = loan.approvalBase;
+
+  // 信用スコアボーナス（最大+20%）
+  rate += (state.credit / 100) * 0.2;
+
+  // 売上実績ボーナス（+10%）
+  if (state.totalRevenue > 0) rate += 0.1;
+
+  // 既存融資ペナルティ（融資1件ごとに-15%）
+  rate -= state.loans.length * 0.15;
+
+  // 金額による難易度（申請額/上限額の比率で調整）
+  const amountRatio = amount / loan.maxAmount;
+  rate -= amountRatio * 0.1;
+
+  // 期数ボーナス（長く続けるほど+）
+  rate += (state.period - 1) * 0.05;
+
+  rate = Math.max(0.05, Math.min(0.95, rate));
+
+  return {
+    eligible: true,
+    rate,
+    interestRate: loan.interestRate,
+    reason: null
+  };
 }
 
 /* ========== エンディング判定 ========== */

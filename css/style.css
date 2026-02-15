@@ -136,6 +136,30 @@ body {
 .choice-btn .choice-title { font-weight: 700; margin-bottom: 4px; }
 .choice-btn .choice-desc { font-size: 0.8rem; color: var(--text2); }
 
+/* 業種選択ボタン */
+.choice-btn.industry-btn {
+  padding: 14px 16px;
+}
+.choice-btn .choice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.choice-btn .difficulty {
+  font-size: 0.7rem;
+  color: var(--orange);
+}
+.choice-btn .industry-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface);
+}
+
 /* ========== CARDS ========== */
 .hand-area {
   display: flex;
@@ -332,12 +356,37 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-left: 3px solid transparent;
+}
+.employee-card.warning {
+  border-left-color: var(--orange);
+  background: rgba(255, 167, 38, 0.05);
 }
 .emp-info .emp-name { font-weight: 700; font-size: 0.9rem; }
 .emp-info .emp-detail { font-size: 0.78rem; color: var(--text2); }
+.emp-info .emp-skill {
+  font-size: 0.7rem;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.emp-status {
+  text-align: right;
+}
+.sat-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.sat-status.good { background: rgba(102, 187, 106, 0.2); color: var(--green); }
+.sat-status.mid { background: rgba(255, 167, 38, 0.2); color: var(--orange); }
+.sat-status.bad { background: rgba(239, 83, 80, 0.2); color: var(--red); }
 .satisfaction-bar {
   display: flex;
   gap: 2px;
+  justify-content: flex-end;
 }
 .satisfaction-bar span {
   width: 10px; height: 10px;
@@ -671,6 +720,225 @@ body {
   color: var(--text2);
   margin-top: 8px;
   text-align: right;
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes barGrow {
+  from { width: 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* 決算画面アニメーション */
+.settlement-panel .visual-row {
+  animation: fadeInUp 0.4s ease-out backwards;
+}
+.settlement-panel .visual-row:nth-child(1) { animation-delay: 0.1s; }
+.settlement-panel .visual-row:nth-child(2) { animation-delay: 0.2s; }
+
+.settlement-panel .visual-bar {
+  animation: barGrow 0.6s ease-out backwards;
+  animation-delay: 0.3s;
+}
+
+.settlement-panel .settlement-profit {
+  animation: fadeInUp 0.4s ease-out backwards;
+  animation-delay: 0.4s;
+}
+
+.settlement-panel .tax-item {
+  animation: fadeInUp 0.3s ease-out backwards;
+}
+.settlement-panel .tax-item:nth-child(1) { animation-delay: 0.5s; }
+.settlement-panel .tax-item:nth-child(2) { animation-delay: 0.6s; }
+.settlement-panel .tax-item:nth-child(3) { animation-delay: 0.7s; }
+.settlement-panel .tax-item:nth-child(4) { animation-delay: 0.8s; }
+
+.settlement-panel .settlement-final {
+  animation: fadeInUp 0.4s ease-out backwards, pulse 0.5s ease-out 1s;
+  animation-delay: 0.9s;
+}
+
+.settlement-panel .final-amount {
+  font-size: 1.4rem;
+}
+
+/* 結果表示アニメーション */
+.result-log > div {
+  animation: fadeInUp 0.3s ease-out backwards;
+}
+.result-log > div:nth-child(1) { animation-delay: 0.1s; }
+.result-log > div:nth-child(2) { animation-delay: 0.2s; }
+.result-log > div:nth-child(3) { animation-delay: 0.3s; }
+.result-log > div:nth-child(4) { animation-delay: 0.4s; }
+
+/* エンディングアニメーション */
+.ending-card .ending-rank {
+  animation: fadeInUp 0.5s ease-out backwards, pulse 0.6s ease-out 0.6s;
+  animation-delay: 0.2s;
+}
+
+/* ========== LOAN SELECTION ========== */
+.loan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loan-option {
+  background: var(--surface2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+.loan-option:hover:not(.disabled) { border-color: var(--accent); }
+.loan-option.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.loan-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.loan-icon { font-size: 1.2rem; }
+.loan-name { font-weight: 700; flex: 1; }
+.loan-status {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.loan-status.good { background: rgba(102, 187, 106, 0.2); color: var(--green); }
+.loan-status.mid { background: rgba(255, 167, 38, 0.2); color: var(--orange); }
+.loan-status.hard { background: rgba(239, 83, 80, 0.2); color: var(--red); }
+.loan-status.disabled { background: var(--surface); color: var(--text2); }
+
+.loan-details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.loan-detail-row {
+  display: flex;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+.loan-detail-row span:first-child { color: var(--text2); }
+.loan-detail-row span:last-child { font-weight: 600; }
+
+.loan-desc {
+  font-size: 0.78rem;
+  color: var(--text2);
+}
+
+/* 融資額選択画面 */
+.loan-info-box {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.loan-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  padding: 4px 0;
+}
+.loan-info-row span:first-child { color: var(--text2); }
+.loan-info-row span:last-child { font-weight: 600; }
+
+.loan-calc {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 12px;
+}
+.loan-calc-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+.loan-calc-row span:first-child { color: var(--text2); }
+.loan-calc-row span:last-child { font-weight: 600; }
+.loan-calc-row.approval span:last-child { color: var(--accent); }
+
+/* 融資返済パネル（月初画面） */
+.loans-panel {
+  border-left: 3px solid var(--orange);
+}
+.loan-item {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.loan-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+.loan-remaining {
+  font-size: 0.75rem;
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.loan-item-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.loan-progress {
+  height: 4px;
+  background: var(--surface2);
+}
+.loan-progress .fill {
+  background: var(--orange);
+}
+.loan-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--surface2);
 }
 
 /* ========== RESPONSIVE ========== */

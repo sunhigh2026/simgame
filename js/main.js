@@ -1,3 +1,24 @@
+/* ========== 結果メッセージ取得 ========== */
+function getResultMessage(category, success, state) {
+  const key = `${category}_${success ? 'success' : 'fail'}`;
+  const pool = DATA.RESULT_MESSAGES[key];
+  if (!pool || pool.length === 0) return '';
+
+  let msg = pool[Math.floor(Math.random() * pool.length)];
+
+  // 状況に応じた追加コメント
+  if (state) {
+    if (success && state.credit >= 50) {
+      msg += '\n（信用が高まっている）';
+    }
+    if (!success && state.period === 1 && state.month <= 6) {
+      msg += '\n（まだ始まったばかり。めげずに行こう）';
+    }
+  }
+
+  return msg;
+}
+
 /* ========== アプリケーションコントローラ ========== */
 const App = {
   state: null,
@@ -6,6 +27,7 @@ const App = {
   hireCandidates: [],
   selectedHireIndex: null,
   currentEvent: null,
+  selectedLoanType: null,
 
   /* ===== 初期化 ===== */
   init() {
@@ -238,7 +260,14 @@ const App = {
 
     /* --- 営業系 --- */
     if (card.category === 'sales' && opt.projectChance !== undefined) {
-      const chance = Math.min(0.95, opt.projectChance + (this.state.credit / 200));
+      // マーケターボーナス
+      let chance = opt.projectChance;
+      const hasMarketer = this.state.employees.some(e => e.label === 'マーケター');
+      if (hasMarketer) {
+        chance += DATA.EMPLOYEE_SKILLS.marketer.effect.salesBonus;
+      }
+      chance = Math.min(0.95, chance + (this.state.credit / 200));
+
       if (Math.random() < chance) {
         const proj = generateProject(this.state, opt.projectTier || 0);
         this.pendingProject = proj;
@@ -247,7 +276,8 @@ const App = {
         UI.updateStatusBar(this.state);
         return; // 見積もり画面に飛ぶので、ここで中断
       } else {
-        results.push({ text: '😔 今回は案件につながらなかった…', type: 'negative' });
+        const failMsg = getResultMessage('sales', false, this.state);
+        results.push({ text: `😔 ${failMsg}`, type: 'negative' });
         this.state.credit = Math.min(100, this.state.credit + 1);
         results.push({ text: '信用スコア +1', type: 'neutral' });
       }
@@ -255,6 +285,9 @@ const App = {
 
     /* --- 投資系 --- */
     if (card.category === 'invest' && opt.effect) {
+      const investMsg = getResultMessage('invest', true, this.state);
+      if (investMsg) results.push({ text: investMsg, type: 'positive' });
+
       if (opt.effect.capacityBonus) {
         this.state.capacityBonus += opt.effect.capacityBonus;
         results.push({ text: `制作キャパ +${opt.effect.capacityBonus}`, type: 'positive' });
@@ -284,7 +317,8 @@ const App = {
         UI.updateStatusBar(this.state);
         return;
       } else {
-        results.push({ text: '😔 良い候補者が見つからなかった…', type: 'negative' });
+        const failMsg = getResultMessage('hr', false, this.state);
+        results.push({ text: `😔 ${failMsg}`, type: 'negative' });
       }
     }
 
@@ -327,31 +361,24 @@ const App = {
       if (card.oneTime) this.state.usedOneTimeCards.push(card.id);
     }
 
-    /* --- 融資 --- */
-    if (card.id === 'special_loan') {
-      const approvalRate = Math.min(0.9,
-        opt.approvalBase + (this.state.credit / 200)
-        + (this.state.totalRevenue > 0 ? 0.1 : 0));
-      if (Math.random() < approvalRate) {
-        this.state.balance += opt.loanAmount;
-        this.state.loans.push({
-          monthlyRepay: opt.monthlyRepay,
-          remainingMonths: 36,
-        });
-        results.push({ text: `🎉 融資承認！Ƴ${opt.loanAmount.toLocaleString()} 入金`, type: 'positive' });
-        results.push({ text: `毎月の返済: Ƴ${opt.monthlyRepay.toLocaleString()} × 36回`, type: 'neutral' });
-      } else {
-        results.push({ text: '😔 融資審査に落ちた…信用を上げよう', type: 'negative' });
-      }
+    /* --- 融資（金融機関選択フローへ） --- */
+    if (card.id === 'special_loan' && card.isLoanCard) {
+      this.state.currentCardIndex++;
+      UI.render(UI.renderLoanSelect(this.state));
+      UI.updateStatusBar(this.state);
+      return;
     }
 
     /* --- 助成金 --- */
     if (card.id === 'special_subsidy') {
       if (Math.random() < opt.approvalChance) {
         this.state.balance += opt.subsidyAmount;
-        results.push({ text: `🎉 助成金採択！Ƴ${opt.subsidyAmount.toLocaleString()} 入金`, type: 'positive' });
+        const successMsg = getResultMessage('subsidy', true, this.state);
+        results.push({ text: `🎉 ${successMsg}`, type: 'positive' });
+        results.push({ text: `Ƴ${opt.subsidyAmount.toLocaleString()} 入金`, type: 'positive' });
       } else {
-        results.push({ text: '😔 不採択…また次の機会に', type: 'negative' });
+        const failMsg = getResultMessage('subsidy', false, this.state);
+        results.push({ text: `😔 ${failMsg}`, type: 'negative' });
       }
     }
 
@@ -359,7 +386,9 @@ const App = {
     if (card.id === 'rest') {
       const recover = opt.hpRecover || 3;
       this.state.hp = Math.min(this.state.maxHp, this.state.hp + recover);
-      results.push({ text: `体力が ${recover} 回復した（現在 ${this.state.hp}/${this.state.maxHp}）`, type: 'positive' });
+      const restMsg = getResultMessage('rest', true, this.state);
+      results.push({ text: restMsg, type: 'positive' });
+      results.push({ text: `体力 +${recover}（現在 ${this.state.hp}/${this.state.maxHp}）`, type: 'positive' });
     }
 
     // 結果がなければデフォルトメッセージ
@@ -376,7 +405,7 @@ const App = {
   submitQuote(price) {
     const proj = this.pendingProject;
     proj.price = price;
-    const winRate = calcWinRate(proj, price);
+    const winRate = calcWinRate(proj, price, this.state);
 
     if (Math.random() < winRate) {
       // 受注成功
@@ -386,8 +415,9 @@ const App = {
       proj.status = activeCount < Math.ceil(cap + 1) ? 'active' : 'waiting';
       this.state.projects.push(proj);
 
+      const successMsg = getResultMessage('sales', true, this.state);
       const results = [
-        { text: `🎉 受注成功！`, type: 'positive' },
+        { text: `🎉 ${successMsg}`, type: 'positive' },
         { text: `${proj.icon} ${proj.name}`, type: 'neutral' },
         { text: `金額: Ƴ${price.toLocaleString()} ／ 工期: ${proj.monthsTotal}ヶ月`, type: 'neutral' },
         { text: proj.status === 'active' ? '制作開始！' : 'バックログに追加（制作待ち）', type: 'neutral' },
@@ -396,11 +426,13 @@ const App = {
       UI.render(UI.renderCardResult(this.state, results));
     } else {
       // 失注
+      const failMsg = getResultMessage('sales', false, this.state);
       const results = [
-        { text: `😔 失注…「他社にお願いすることにしました」`, type: 'negative' },
+        { text: `😔 ${failMsg}`, type: 'negative' },
         { text: `見積もりƴ${price.toLocaleString()}は高かったかもしれない`, type: 'neutral' },
       ];
       this.state.credit = Math.min(100, this.state.credit + 1);
+      results.push({ text: '信用スコア +1（経験値）', type: 'neutral' });
       this.pendingProject = null;
       UI.render(UI.renderCardResult(this.state, results));
     }
@@ -452,6 +484,98 @@ const App = {
     this.selectedHireIndex = null;
     UI.render(UI.renderCardResult(this.state, results));
     UI.updateStatusBar(this.state);
+  },
+
+  /* ===== 融資選択 ===== */
+  selectLoanType(typeId) {
+    const loan = DATA.LOAN_TYPES[typeId];
+    if (!loan) {
+      this.processNextCard();
+      return;
+    }
+
+    // 条件チェック
+    if (!loan.condition(this.state)) {
+      let reason = '';
+      switch (typeId) {
+        case 'jfc':
+          reason = '創業2年以内の企業が対象です';
+          break;
+        case 'shinkin':
+          reason = '信用スコア30以上が必要です';
+          break;
+        case 'mega':
+          reason = '黒字2期以上の実績が必要です';
+          break;
+        default:
+          reason = '条件を満たしていません';
+      }
+      const results = [
+        { text: `😔 ${loan.name}`, type: 'negative' },
+        { text: reason, type: 'neutral' },
+      ];
+      UI.render(UI.renderCardResult(this.state, results));
+      UI.updateStatusBar(this.state);
+      return;
+    }
+
+    this.selectedLoanType = typeId;
+    UI.render(UI.renderLoanAmount(this.state, loan));
+    UI.updateStatusBar(this.state);
+  },
+
+  applyForLoan(amount) {
+    const typeId = this.selectedLoanType;
+    const loan = DATA.LOAN_TYPES[typeId];
+    if (!loan) {
+      this.processNextCard();
+      return;
+    }
+
+    // 審査
+    const approval = calcLoanApproval(this.state, typeId, amount);
+    const results = [];
+
+    if (Math.random() < approval.rate) {
+      // 審査通過
+      const interestTotal = Math.round(amount * loan.interestRate * 3); // 3年分の利息
+      const totalRepay = amount + interestTotal;
+      const monthlyRepay = Math.round(totalRepay / 36);
+
+      this.state.balance += amount;
+      this.state.loans.push({
+        name: loan.name,
+        icon: loan.icon,
+        principal: amount,
+        monthlyRepay: monthlyRepay,
+        remainingMonths: 36,
+        interestRate: loan.interestRate,
+      });
+
+      const successMsg = getResultMessage('loan', true, this.state);
+      results.push({ text: `🎉 ${successMsg}`, type: 'positive' });
+      results.push({ text: `${loan.icon} ${loan.name}より融資決定！`, type: 'positive' });
+      results.push({ text: `融資額: Ƴ${amount.toLocaleString()}`, type: 'positive' });
+      results.push({ text: `金利: ${(loan.interestRate * 100).toFixed(1)}%`, type: 'neutral' });
+      results.push({ text: `毎月の返済: Ƴ${monthlyRepay.toLocaleString()} × 36回`, type: 'neutral' });
+    } else {
+      // 審査落ち
+      const failMsg = getResultMessage('loan', false, this.state);
+      results.push({ text: `😔 ${failMsg}`, type: 'negative' });
+      results.push({ text: `${loan.name}の審査に通りませんでした`, type: 'neutral' });
+      if (this.state.loans.length > 0) {
+        results.push({ text: '※既存の融資が審査に影響した可能性があります', type: 'neutral' });
+      }
+    }
+
+    this.selectedLoanType = null;
+    UI.render(UI.renderCardResult(this.state, results));
+    UI.updateStatusBar(this.state);
+  },
+
+  cancelLoan() {
+    this.selectedLoanType = null;
+    this.processNextCard();
   },
 
   /* ===== 制作フェーズ ===== */
