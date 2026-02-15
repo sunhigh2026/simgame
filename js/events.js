@@ -1,103 +1,192 @@
-export const EVENTS = [
+/* ========== イベント定義 ========== */
+const EVENTS = [
+  // --- 1期 ---
   {
-    id: 'evt_bank_account', period: 1, month: 2,
-    title: '法人口座の開設',
-    dialog: { name: '銀行窓口', text: '法人口座の審査ですが……\n設立したばかりの会社ということで、\n今回は見送りとさせていただきます。' },
-    followUp: { name: '（あなたの心の声）', text: 'マジか……。ネット銀行なら通るかも。' },
+    id: 'ev_bank_account',
+    period: 1, month: 2,
+    title: '🏦 法人口座を開設しに行く',
+    text: '会社を作ったはいいが、法人口座がないと始まらない。メガバンクに申し込みに行くか、ネット銀行にするか。',
     choices: [
-      { text: 'ネット銀行に申し込む', effect: { creditScore: 3 } },
-      { text: '個人口座で代用する（信用ダウン）', effect: { creditScore: -5 } },
+      { text: 'メガバンクに申し込む（信用力UP、ただし審査厳しい）', effect: { creditBonus: 5, successChance: 0.4 },
+        successText: '審査通過！信用スコア+5',
+        failText: '審査落ち…「実績ができたらまた来てください」と言われた。ネット銀行で開設した。' },
+      { text: 'ネット銀行で開設（確実）', effect: { creditBonus: 1 },
+        successText: 'すぐに開設完了。ネットで完結、便利。信用スコア+1' },
     ],
   },
   {
-    id: 'evt_first_revenue', period: 1, month: 3,
-    condition: (gs) => gs.periodRevenue > 0,
-    title: '初めての入金',
-    dialog: { name: '（あなた）', text: '法人口座に、初めての入金があった。\n\n……やった。本当にやった。\nこれが自分で稼いだお金だ。' },
-  },
-  {
-    id: 'evt_withholding', period: 1, month: 4,
-    condition: (gs) => gs.periodRevenue > 0,
-    title: '源泉徴収ってなに？',
-    conditionAccountant: 'basic',
-    dialogNoAccountant: { name: '（あなた）', text: '取引先からの入金が、請求額より少ない。\nなんで？\n\n……誰かに聞きたいけど、税理士いないしな。' },
-    dialogWithAccountant: { name: '税理士 佐藤', text: '取引先からの入金、請求額より少なくないですか？\nそれは「源泉徴収」です。\n報酬の10.21%が天引きされて、\n先方が代わりに国に納めています。\n\n確定申告で取り戻せるので、慌てなくて大丈夫です。' },
-  },
-  {
-    id: 'evt_living_cost', period: 1, month: 6,
-    title: '通帳を見て震える夜',
-    dialog: { name: '（深夜3時、布団の中で）', text: '……個人の貯金が減り続けている。\n\n役員報酬、足りてるのか？\nこの生活、あと何ヶ月持つ？\n\n会社を辞めたあの日の自分に\n「本当に大丈夫か？」と聞きたい。' },
-  },
-  {
-    id: 'evt_social_insurance', period: 1, month: 5,
-    title: '社会保険料の説明',
-    conditionAccountant: 'basic',
-    dialogNoAccountant: { name: '年金事務所', text: '貴社の社会保険の届出が\n確認できておりません。\n速やかにお手続きください。' },
-    dialogWithAccountant: { name: '税理士 佐藤', text: '社長、社会保険料について説明させてください。\n\nこれは健康保険と年金のことです。\n会社と社長が半分ずつ負担します。\n\n例えば役員報酬 Ƴ25万の場合、\n会社負担：約Ƴ7万\n本人負担：約Ƴ3.5万\n\n給料が高いほど、この金額も増えます。\n役員報酬を決めるとき、ここも考慮が必要ですよ。' },
-  },
-  {
-    id: 'evt_pension_office', period: 1, month: 10,
-    title: '年金事務所からの手紙',
-    dialog: { name: '年金事務所', text: '貴社の社会保険の届出が\n確認できておりません。\n届出がまだの場合は速やかにお手続きください。' },
+    id: 'ev_business_card',
+    period: 1, month: 3,
+    title: '📇 名刺を作る',
+    text: '営業するには名刺が必要だ。どこまでこだわる？',
     choices: [
-      { text: 'すぐ届け出る', effect: {} },
-      { text: 'もう少し放置する（リスク）', effect: { penaltyRisk: true } },
+      { text: 'ネット印刷で最低限（Ƴ2,000）', effect: { cost: 2000, creditBonus: 0 },
+        successText: 'シンプルな名刺が届いた。まあ、これで十分。' },
+      { text: 'デザイナーに頼む（Ƴ30,000）', effect: { cost: 30000, creditBonus: 3 },
+        successText: 'おしゃれな名刺ができた！「いい名刺ですね」と言われることが増えた。信用+3' },
+    ],
+  },
+  {
+    id: 'ev_first_revenue',
+    period: 1, month: 4,
+    title: '🎉 初めての入金！',
+    text: 'ついに初めての売上が口座に振り込まれた日。通帳を何度も見返してしまう。',
+    condition: (state) => state.totalRevenue > 0,
+    choices: [
+      { text: '気を引き締めて次の案件へ', effect: { hpRecover: 2 }, successText: '初入金の嬉しさをバネに頑張ろう。体力+2' },
+    ],
+  },
+  {
+    id: 'ev_withholding',
+    period: 1, month: 5,
+    title: '📝 源泉徴収って何？',
+    text: '請求書を出したら「源泉徴収しますね」と言われた。え、売上から引かれるの？',
+    choices: [
+      { text: '調べて理解する', effect: { hpCost: 1 },
+        successText: '所得税の前払い的な制度だとわかった。最終的には確定申告で調整される。勉強になった！' },
+      { text: '税理士に聞く', effect: {},
+        successText: state => state.accountant !== 'none'
+          ? '佐藤税理士「源泉は売上の10.21%が天引きされますが、法人なら基本関係ないですよ」'
+          : '…税理士がいないので自分で調べるしかない。' },
+    ],
+  },
+  {
+    id: 'ev_living_crisis',
+    period: 1, month: 7,
+    title: '💸 生活費が足りない！',
+    text: '役員報酬を低く設定しすぎたかも。個人の貯金も減ってきた…。',
+    condition: (state) => state.salary <= 150000,
+    choices: [
+      { text: '節約して耐える（体力-2）', effect: { hpCost: 2 }, successText: '自炊とクーポンで乗り切った。体がキツい…。' },
+      { text: '個人貯金から会社に貸付（Ƴ300,000）', effect: { cashInflow: 300000 }, successText: '役員借入金として処理。いつか返してもらおう…。' },
     ],
   },
 
-  // === 2期目 ===
+  // --- 2期 ---
   {
-    id: 'evt_salary_negotiation', period: 2, month: 4,
-    condition: (gs) => gs.employees.length > 0,
-    title: '給料交渉',
-    dialogFn: (gs) => ({
-      name: gs.employees[0].name + 'さん',
-      text: `社長、ちょっとお話があるんですが……\n入社して半年になるんですけど、\nお給料の見直しって、ありますか？\n\n（現在の月給：Ƴ${gs.employees[0].salary.toLocaleString()}）`,
-    }),
-    interactive: true,
+    id: 'ev_salary_negotiation',
+    period: 2, month: 3,
+    title: '💬 従業員から給料交渉',
+    text: '「社長、ちょっとお話が…」',
+    condition: (state) => state.employees.length > 0,
     choices: [
-      { text: '月Ƴ1万上げる', effect: { employeeSatisfaction: 15, monthlyExpense: 10000 } },
-      { text: '今は据え置き（理由を説明する）', effect: { employeeSatisfaction: -5 } },
-      { text: '今は無理（素っ気なく断る）', effect: { employeeSatisfaction: -20 } },
+      { text: '月Ƴ20,000上げる', effect: { salaryUp: 20000, satisfactionUp: 15 }, successText: '嬉しそうだ。やる気も上がったみたい。' },
+      { text: '今は厳しいと伝える', effect: { satisfactionDown: 10 }, successText: '「わかりました…」少し不満そうだ。' },
+      { text: '賞与で対応すると約束', effect: { satisfactionUp: 5 }, successText: '「期待してます！」…プレッシャーだ。' },
     ],
   },
   {
-    id: 'evt_payment_delay', period: 2, month: 9,
-    condition: (gs) => gs.periodRevenue > 3000000,
-    title: '入金遅延',
-    dialog: { name: '取引先', text: '申し訳ありません、\n今月末のお支払いですが、\n社内の経理の都合で来月末に\nずれ込みそうでして……' },
-    followUpAccountant: { name: '税理士 佐藤', text: '売掛金の回収遅延ですね。\n売上は立っているのにお金が入ってこない。\n「黒字倒産」の入口がこれです。' },
+    id: 'ev_late_payment',
+    period: 2, month: 6,
+    title: '⚠️ 入金が遅れている！',
+    text: '先月納品した案件の入金が来ない。催促するか？',
     choices: [
-      { text: '丁寧に催促する', effect: { creditScore: 1 } },
-      { text: '待つ（来月の資金繰りが苦しくなる）', effect: { cashFlowHit: 300000 } },
-      { text: '強めに催促する（関係悪化リスク）', effect: { creditScore: -3 } },
+      { text: 'やんわり催促', effect: { successChance: 0.6 },
+        successText: '「すみません、来週振り込みます」無事入金された。',
+        failText: '「もう少し待ってください」…来月に持ち越し。' },
+      { text: '強めに催促', effect: { successChance: 0.85, creditEffect: -2 },
+        successText: '翌日入金された。ただし関係は少し悪化。',
+        failText: '逆ギレされた。「もうお宅には頼まない」信用-2' },
+      { text: '待つ', effect: { delayMonths: 1 },
+        successText: '翌月、無事に入金された。ホッとした。' },
     ],
   },
+
+  // --- 3期 ---
   {
-    id: 'evt_employee_quit_risk', period: 2, month: 8,
-    condition: (gs) => gs.employees.some(e => e.satisfaction < 40),
-    title: '退職の予兆',
-    dialogFn: (gs) => {
-      const unhappy = gs.employees.find(e => e.satisfaction < 40);
-      return {
-        name: '（社内の噂）',
-        text: `${unhappy.name}さん、最近\n転職サイト見てるらしいですよ……`,
-      };
-    },
+    id: 'ev_big_project',
+    period: 3, month: 4,
+    title: '🏢 大手企業から問い合わせ！',
+    text: 'トーキョ区の大手企業から「サイトリニューアルの見積もりを」と連絡が来た！大きなチャンスだが…',
     choices: [
-      { text: '本人と面談する', effect: { employeeSatisfaction: 10 } },
-      { text: '給料を上げて引き留める', effect: { employeeSatisfaction: 25, monthlyExpense: 20000 } },
-      { text: '様子を見る', effect: {} },
+      { text: '全力で提案する（体力-4）', effect: { hpCost: 4, projectChance: 0.5, bigProject: true },
+        successText: '受注成功！報酬Ƴ2,000,000の大型案件だ！',
+        failText: '惜しくも落選。「またの機会に」…でも良い経験になった。信用+3' },
+      { text: '無理せず断る', effect: { hpCost: 0 },
+        successText: '身の丈に合った仕事をしよう。堅実だ。' },
+    ],
+  },
+
+  // --- 4期 ---
+  {
+    id: 'ev_tax_audit',
+    period: 4, month: 8,
+    title: '🔍 税務調査の通知が届いた',
+    text: '税務署から連絡が…！「来月、御社の帳簿を確認させてください」',
+    choices: [
+      { text: '税理士に相談して準備する', effect: {},
+        successText: state => state.accountant !== 'none'
+          ? `${DATA.ACCOUNTANTS[state.accountant].name}「大丈夫です、しっかり準備しましょう」→ 問題なく終了。`
+          : '税理士がいない！自分で帳簿を整理するしかない…（体力-4、ペナルティリスクあり）' },
+      { text: 'とりあえず帳簿を見直す（体力-3）', effect: { hpCost: 3, auditPenaltyChance: 0.3 },
+        successText: '何とか乗り切った。ヒヤヒヤした…',
+        failText: '経費の一部が否認された。追徴課税Ƴ150,000…痛い。' },
+    ],
+  },
+
+  // --- 5期 ---
+  {
+    id: 'ev_ma_offer',
+    period: 5, month: 6,
+    title: '💰 M&Aの打診が来た',
+    text: '「御社を買収したいのですが…」大手から声がかかった。',
+    condition: (state) => state.totalRevenue > 20000000,
+    choices: [
+      { text: '話を聞いてみる', effect: { exitOption: true },
+        successText: '条件次第ではEXITも選択肢に。最終決算後に決断できる。' },
+      { text: '断る', effect: {},
+        successText: 'この会社は自分で育てる。まだまだこれからだ。' },
     ],
   },
 ];
 
-export function getEventsForMonth(period, month, gameState) {
-  return EVENTS.filter(evt => {
-    if (evt.period !== period) return false;
-    if (evt.month !== month) return false;
-    if (evt.condition && !evt.condition(gameState)) return false;
-    if (gameState.triggeredEvents.includes(evt.id)) return false;
+function getMonthEvent(state) {
+  const candidates = EVENTS.filter(e => {
+    if (e.period !== state.period) return false;
+    if (e.month !== state.month) return false;
+    if (e.condition && !e.condition(state)) return false;
+    if (state.completedEvents.includes(e.id)) return false;
     return true;
   });
+  return candidates.length > 0 ? candidates[0] : null;
+}
+
+// ランダムイベント（特定月に紐づかない）
+const RANDOM_EVENTS = [
+  {
+    id: 'rand_referral',
+    text: '以前の取引先から紹介が入った！',
+    chance: 0.1,
+    effect: { projectDirect: true, tier: 1 },
+    period: [1,2,3,4,5],
+  },
+  {
+    id: 'rand_tool_discount',
+    text: '使っているツールが30%割引キャンペーン中！',
+    chance: 0.08,
+    effect: { costReduction: 0.3 },
+    period: [1,2,3,4,5],
+  },
+  {
+    id: 'rand_sick',
+    text: '風邪をひいてしまった…今月の体力-3',
+    chance: 0.08,
+    effect: { hpCost: 3 },
+    period: [1,2,3,4,5],
+  },
+  {
+    id: 'rand_server_down',
+    text: 'サーバーがダウン！復旧に時間がかかった。',
+    chance: 0.06,
+    effect: { hpCost: 2, cost: 15000 },
+    period: [1,2,3,4,5],
+  },
+];
+
+function checkRandomEvent(state) {
+  const candidates = RANDOM_EVENTS.filter(e => e.period.includes(state.period));
+  for (const ev of candidates) {
+    if (Math.random() < ev.chance) return ev;
+  }
+  return null;
 }

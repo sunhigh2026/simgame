@@ -1,424 +1,652 @@
-const screen = () => document.querySelector('#screen');
+/* ========== UI描画 ========== */
+const UI = {
+  money(amount) {
+    if (amount < 0) return `<span class="negative">▲Ƴ${Math.abs(amount).toLocaleString()}</span>`;
+    return `Ƴ${amount.toLocaleString()}`;
+  },
 
-export function render(html) {
-  screen().innerHTML = html;
-  window.scrollTo(0, 0);
-}
+  render(html) {
+    document.getElementById('screen').innerHTML = html;
+  },
 
-export function append(html) {
-  screen().insertAdjacentHTML('beforeend', html);
-}
+  append(html) {
+    document.getElementById('screen').innerHTML += html;
+  },
 
-export function money(amount) {
-  if (amount < 0) return `▲Ƴ${Math.abs(amount).toLocaleString()}`;
-  return `Ƴ${amount.toLocaleString()}`;
-}
+  /* ========== ステータスバー ========== */
+  updateStatusBar(state) {
+    const bar = document.getElementById('status-bar');
+    if (state.phase === 'intro' || state.phase === 'setup') {
+      bar.classList.remove('active');
+      return;
+    }
+    bar.classList.add('active');
 
-export function moneyClass(amount) {
-  return amount >= 0 ? 'positive' : 'negative';
-}
+    const hpBlocks = Array.from({ length: state.maxHp }, (_, i) => {
+      if (i < state.hp) {
+        if (state.hp <= 3) return '<span class="critical"></span>';
+        if (state.hp <= 6) return '<span class="low"></span>';
+        return '<span class="filled"></span>';
+      }
+      return '<span></span>';
+    }).join('');
 
-function hasFeature(state, feature) {
-  if (!state.accountant) return false;
-  if (state.accountant === 'basic') return ['monthlyPL', 'taxAdvice', 'detailedSettlement'].includes(feature);
-  if (state.accountant === 'advanced') return true;
-  return false;
-}
-
-// --- 画面パーツ ---
-
-export function titleScreen() {
-  return `
-    <div class="title-logo fade-in">
-      <h1>起業しろ！</h1>
-      <div class="subtitle">〜ナホン成り上がり経営記〜</div>
-    </div>
-    <div class="narrative fade-in fade-in-delay-2">
-ここは<em>ナホン国</em>。
-
-どこにでもある、よくある国。
-満員電車、チェーンの牛丼屋、
-コンビニのコーヒー、月末の通帳残高。
-
-あなた（30）は今日、会社を辞めた。
-
-退職金はない。
-貯金は<span class="highlight">Ƴ5,000,000</span>。
-経験はない。あるのは、やる気だけ。
-    </div>
-    <button class="btn btn-primary fade-in fade-in-delay-4" id="btn-start">起業する</button>
-  `;
-}
-
-export function statusBar(state) {
-  const monthLabel = `${state.currentPeriod}期目 ${state.currentMonth}月`;
-  const change = state._lastCash !== undefined ? state.corporateCash - state._lastCash : 0;
-  const acctBadge = state.accountant
-    ? `<span class="accountant-badge">税理士${state.accountant === 'advanced' ? '(敏腕)' : ''}</span>`
-    : '';
-
-  return `
-    <div class="status-bar">
-      <div class="period">${monthLabel} ${acctBadge}</div>
-      <div class="company-name">${state.companyType?.name || ''} ${state.companyName || ''}</div>
-      <div class="balance-row">
-        <span class="balance-label">法人口座</span>
-        <span class="balance-value main">${money(state.corporateCash)}${
-          change !== 0 ? `<span class="balance-change ${moneyClass(change)}">(${change >= 0 ? '+' : ''}${money(change)})</span>` : ''
-        }</span>
-      </div>
-      <div class="balance-row">
-        <span class="balance-label">今期売上</span>
-        <span class="balance-value positive">${money(state.periodRevenue)}</span>
-      </div>
-      <div class="balance-row">
-        <span class="balance-label">個人の貯金</span>
-        <span class="balance-value ${moneyClass(state.personalCash)}">${money(state.personalCash)}</span>
-      </div>
-    </div>
-  `;
-}
-
-export function dialogBox(name, text) {
-  return `
-    <div class="dialog fade-in">
-      <div class="dialog-name">${name}</div>
-      <div class="dialog-text">${text}</div>
-    </div>
-  `;
-}
-
-export function industryChoices(industries) {
-  return Object.values(industries).map(ind => `
-    <button class="btn fade-in" data-industry="${ind.id}">
-      <span class="btn-label">${ind.icon} ${ind.name}</span>
-      <span class="btn-desc">${ind.description}</span>
-    </button>
-  `).join('');
-}
-
-export function companyTypeChoices(types) {
-  return Object.values(types).map(ct => `
-    <button class="btn fade-in" data-company-type="${ct.id}">
-      <span class="btn-label">${ct.name}</span>
-      <span class="btn-desc">${ct.description}（設立費用：${money(ct.cost)}）</span>
-    </button>
-  `).join('');
-}
-
-export function capitalSlider(maxCapital) {
-  return `
-    <div class="slider-container fade-in">
-      <label>資本金を決めてください</label>
-      <div class="slider-value"><span id="capital-display">Ƴ1,000,000</span></div>
-      <input type="range" id="capital-slider" min="10000" max="${maxCapital}" step="10000" value="1000000">
-      <div class="slider-range-labels"><span>Ƴ1万</span><span>${money(maxCapital)}</span></div>
-      <div class="slider-detail" id="capital-detail"></div>
-    </div>
-  `;
-}
-
-export function salarySlider(currentValue) {
-  const val = currentValue || 250000;
-  return `
-    <div class="slider-container fade-in">
-      <label>役員報酬（会社からあなたへの毎月の給料）</label>
-      <div class="slider-value"><span id="salary-display">${money(val)}</span><span class="slider-unit">/月</span></div>
-      <input type="range" id="salary-slider" min="0" max="600000" step="10000" value="${val}">
-      <div class="slider-range-labels"><span>Ƴ0</span><span>Ƴ60万</span></div>
-      <div class="slider-detail" id="salary-detail"></div>
-    </div>
-  `;
-}
-
-export function cardHand(hand, selectedIds) {
-  return `
-    <div class="cards-hand">
-      ${hand.map((card, i) => {
-        const selected = selectedIds.includes(card.instanceId);
-        const disabled = !selected && selectedIds.length >= 2;
-        return `
-          <div class="card ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} fade-in fade-in-delay-${i + 1}"
-               data-card-id="${card.instanceId}">
-            <div class="card-header">
-              <span class="card-category ${card.category}">${card.categoryLabel}</span>
-              <span class="card-name">${card.icon} ${card.name}</span>
-            </div>
-            <div class="card-desc">${card.description}</div>
-            <div class="card-stats">
-              ${card.cost > 0 ? `<div class="card-stat-item">コスト: <span>${money(card.cost)}</span></div>` : ''}
-              ${card.revenueMin !== undefined ? `<div class="card-stat-item">売上: <span>${money(card.revenueMin)}〜${money(card.revenueMax)}</span></div>` : ''}
-              ${card.failRate > 0 ? `<div class="card-stat-item">失敗率: <span>${Math.floor(card.failRate * 100)}%</span></div>` : ''}
-              ${card.permanentLabel ? `<div class="card-stat-item">${card.permanentLabel}</div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-export function monthResultView(results) {
-  return `
-    <div class="month-result fade-in">
-      <h3>── 今月の結果 ──</h3>
-      ${results.map(r => `
-        <div class="result-item">
-          ${r.type === 'revenue' ? `💰 ${r.text}` : ''}
-          ${r.type === 'cost' ? `💸 ${r.text}` : ''}
-          ${r.type === 'fail' ? `😢 ${r.text}` : ''}
-          ${r.type === 'success' ? `✨ ${r.text}` : ''}
-          ${r.type === 'permanent' ? `🔓 ${r.text}` : ''}
-          ${r.type === 'stamina' ? `💪 ${r.text}` : ''}
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-// 月末処理：税理士の有無で表示を分岐
-export function monthEndView(result, state) {
-  if (!state.accountant) {
-    // 税理士なし：合計額だけ
-    const total = result.items.reduce((sum, item) => sum + item.amount, 0);
-    return `
-      <div class="month-result fade-in">
-        <h3>── 月末処理 ──</h3>
-        <div class="settlement-row total">
-          <span>口座からの引き落とし合計</span>
-          <span class="amount negative">${money(total)}</span>
-        </div>
-        <div class="info-box info" style="margin-top:12px;">
-          💡 内訳が見えない……。税理士と契約すれば詳細がわかります。
-        </div>
+    bar.innerHTML = `
+      <div class="status-period">${state.period}期目 ${state.month}月 ／ ナホン・トーキョ区</div>
+      <div class="status-grid">
+        <span class="label">💰 残高</span>
+        <span class="value ${state.balance < 200000 ? 'danger' : 'safe'}">${UI.money(state.balance)}</span>
+        <span class="label">❤️ 体力</span>
+        <span class="value"><div class="hp-bar-mini">${hpBlocks}</div></span>
+        <span class="label">⭐ 信用</span>
+        <span class="value">${state.credit}</span>
+        <span class="label">📋 案件</span>
+        <span class="value">${state.projects.filter(p => p.status === 'active' || p.status === 'waiting').length}件</span>
       </div>
     `;
-  }
+  },
 
-  // 税理士あり：詳細表示
-  return `
-    <div class="settlement-table fade-in">
-      <h3>── 月末処理（税理士レポート）──</h3>
-      ${result.items.map(item => `
-        <div class="settlement-row">
-          <span>${item.label}</span>
-          <span class="amount negative">${money(item.amount)}</span>
-        </div>
-        ${item.detail ? `<div class="settlement-row indent"><span>${item.detail}</span></div>` : ''}
-      `).join('')}
-    </div>
-  `;
-}
-
-// 月次P/L（税理士あり時のみ表示）
-export function monthlyPLView(state) {
-  if (!hasFeature(state, 'monthlyPL')) return '';
-
-  const rev = state.periodRevenue;
-  const exp = state.periodExpense;
-  const profit = rev - exp;
-  const maxBar = Math.max(rev, exp, 1);
-
-  return `
-    <div class="settlement-table fade-in">
-      <h3>📊 今期の累計P/L（税理士レポート）</h3>
-      <div class="settlement-row">
-        <span>売上</span>
-        <span class="amount positive">${money(rev)}</span>
-      </div>
-      <div class="pl-bar"><div class="pl-bar-fill revenue" style="width:${(rev / maxBar) * 100}%"></div></div>
-
-      <div class="settlement-row" style="margin-top:8px;">
-        <span>経費</span>
-        <span class="amount negative">${money(-exp)}</span>
-      </div>
-      <div class="pl-bar"><div class="pl-bar-fill expense" style="width:${(exp / maxBar) * 100}%"></div></div>
-
-      <div class="settlement-row total">
-        <span>利益（税引前）</span>
-        <span class="amount ${moneyClass(profit)}">${money(profit)}</span>
-      </div>
-      ${profit > 0 ? `<div class="pl-bar"><div class="pl-bar-fill profit" style="width:${(profit / maxBar) * 100}%"></div></div>` : ''}
-    </div>
-  `;
-}
-
-// 決算：税理士の有無で分岐
-export function settlementView(result, state) {
-  if (!state.accountant) {
-    // 税理士なし：ざっくり
+  /* ========== オープニング ========== */
+  renderIntro() {
     return `
-      <div class="settlement-table fade-in">
-        <h3>📊 第${state.currentPeriod}期 決算</h3>
-        <div class="settlement-row">
-          <span>売上（たぶんこのくらい）</span>
-          <span class="amount">${money(Math.round(result.revenue / 100000) * 100000)}</span>
-        </div>
-        <div class="settlement-row">
-          <span>経費（よくわからない）</span>
-          <span class="amount negative">???</span>
-        </div>
-        <div class="settlement-row total">
-          <span>税金</span>
-          <span class="amount negative">${money(-result.totalTax)}</span>
-        </div>
+      <div class="game-title">
+        <h1>起業しろ！</h1>
+        <div class="subtitle">〜ナホン成り上がり経営記〜</div>
       </div>
-      <div class="info-box warning fade-in fade-in-delay-1">
-        ⚠️ 利益の正確な金額がわからないまま税金を払いました。
-        税理士がいれば、節税できたかもしれません……。
-      </div>
-      ${result.profit < 0 ? `
-        <div class="info-box danger fade-in fade-in-delay-2">
-          赤字です。でも均等割 ${money(result.citizenTax)} は取られました。
-          なんで赤字なのにお金取られるんだ……？
+      <div class="panel">
+        <div class="intro-text">
+          ナホン国・トーキョ区。<br><br>
+          あなたは30歳のサラリーマン。<br>
+          貯金はƴ500万。仕事はそこそこ。人生もそこそこ。<br><br>
+          「このまま定年まで働くのか…？」<br><br>
+          ある日、あなたは決意する。<br><br>
+          <strong>「会社を辞めて、起業しよう」</strong><br><br>
+          貯金ƴ500万。人脈ゼロ。経験ゼロ。<br>
+          税金？社会保険？決算？なにそれ？<br><br>
+          あなたの5年間が、今始まる。
         </div>
-      ` : ''}
+        <button class="btn btn-block" onclick="App.startSetup()">起業する</button>
+      </div>
     `;
-  }
+  },
 
-  // 税理士あり：完全なP/L
-  const maxBar = Math.max(result.revenue, result.expense, 1);
+  /* ========== セットアップ ========== */
+  renderIndustrySelect() {
+    const industries = Object.values(DATA.INDUSTRIES);
+    const choices = industries.map(ind => `
+      <button class="choice-btn" onclick="App.selectIndustry('${ind.id}')">
+        <div class="choice-title">${ind.icon} ${ind.name}</div>
+        <div class="choice-desc">${ind.description}<br>初期費用: Ƴ${ind.initialCost.toLocaleString()} ／ 月間経費: Ƴ${ind.monthlyCost.toLocaleString()}</div>
+      </button>
+    `).join('');
 
-  let html = `
-    <div class="settlement-table fade-in">
-      <h3>📊 損益計算書（P/L）</h3>
-
-      <div class="settlement-row">
-        <span>売上高</span>
-        <span class="amount">${money(result.revenue)}</span>
+    return `
+      <div class="panel">
+        <div class="panel-title">🏭 業種を選択</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">何で起業する？</p>
+        <div class="btn-group">${choices}</div>
       </div>
-      <div class="pl-bar"><div class="pl-bar-fill revenue" style="width:${(result.revenue / maxBar) * 100}%"></div></div>
+    `;
+  },
 
-      <div class="settlement-row" style="margin-top:8px;">
-        <span>経費合計</span>
-        <span class="amount negative">${money(-result.expense)}</span>
+  renderCompanyTypeSelect() {
+    const choices = DATA.COMPANY_TYPES.map(ct => `
+      <button class="choice-btn" onclick="App.selectCompanyType('${ct.id}')">
+        <div class="choice-title">${ct.name}</div>
+        <div class="choice-desc">${ct.description}${ct.creditBonus > 0 ? ` ／ 信用+${ct.creditBonus}` : ''}</div>
+      </button>
+    `).join('');
+
+    return `
+      <div class="panel">
+        <div class="panel-title">🏛️ 法人形態を選択</div>
+        <div class="btn-group">${choices}</div>
       </div>
-      <div class="pl-bar"><div class="pl-bar-fill expense" style="width:${(result.expense / maxBar) * 100}%"></div></div>
+    `;
+  },
 
-      <div class="settlement-row total">
-        <span>営業利益</span>
-        <span class="amount ${moneyClass(result.profit)}">${money(result.profit)}</span>
-      </div>
-      ${result.profit > 0 ? `<div class="pl-bar"><div class="pl-bar-fill profit" style="width:${(result.profit / maxBar) * 100}%"></div></div>` : ''}
-    </div>
-  `;
-
-  if (result.usedCarryForward > 0) {
-    html += `<div class="info-box info fade-in fade-in-delay-1">繰越欠損金 ${money(result.usedCarryForward)} を適用しました</div>`;
-  }
-  if (result.usedDeduction > 0) {
-    html += `<div class="info-box info fade-in fade-in-delay-2">節税対策により ${money(result.usedDeduction)} の利益を圧縮しました</div>`;
-  }
-
-  html += `
-    <div class="settlement-table fade-in fade-in-delay-3">
-      <h3>🏛️ 税金</h3>
-      <div class="settlement-row">
-        <span>法人税${result.taxableIncome > 0 ? `（${result.taxableIncome <= 8000000 ? '14%' : '14%/22%'}）` : ''}</span>
-        <span class="amount">${money(result.corporateTax)}</span>
-      </div>
-      <div class="settlement-row">
-        <span>均等割</span>
-        <span class="amount">${money(result.citizenTax)}</span>
-      </div>
-      ${result.profit < 0 ? `<div class="settlement-row indent"><span>← 赤字でもかかります</span></div>` : ''}
-      <div class="settlement-row">
-        <span>事業税</span>
-        <span class="amount">${money(result.businessTax)}</span>
-      </div>
-      ${result.consumptionTax > 0 ? `
-        <div class="settlement-row">
-          <span>消費税</span>
-          <span class="amount">${money(result.consumptionTax)}</span>
-        </div>
-      ` : ''}
-      <div class="settlement-row total">
-        <span>税金合計</span>
-        <span class="amount negative">${money(-result.totalTax)}</span>
-      </div>
-    </div>
-  `;
-
-  if (result.taxSaved > 0) {
-    html += `<div class="info-box info fade-in fade-in-delay-4">🛡️ 節税効果：${money(result.taxSaved)} 軽減されました！</div>`;
-  }
-
-  if (result.carryForwardLoss > 0) {
-    html += `<div class="info-box info fade-in fade-in-delay-5">繰越欠損金の残高：${money(result.carryForwardLoss)}（来期以降の利益と相殺できます）</div>`;
-  }
-
-  // B/S（敏腕税理士のみ）
-  if (hasFeature(state, 'balanceSheet')) {
-    html += balanceSheetView(state);
-  }
-
-  return html;
-}
-
-function balanceSheetView(state) {
-  const cash = state.corporateCash;
-  const totalAssets = Math.max(cash, 0);
-  const capital = state.capital;
-  const retainedEarnings = cash - capital;
-
-  return `
-    <div class="settlement-table fade-in fade-in-delay-5">
-      <h3>📋 貸借対照表（B/S）</h3>
-      <div style="display:flex; gap:8px;">
-        <div style="flex:1;">
-          <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px;">持っているもの</div>
-          <div class="settlement-row">
-            <span>現金・預金</span>
-            <span class="amount">${money(Math.max(cash, 0))}</span>
-          </div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px;">お金の出どころ</div>
-          <div class="settlement-row">
+  renderCapitalSelect() {
+    return `
+      <div class="panel">
+        <div class="panel-title">💰 資本金を設定</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">
+          貯金Ƴ500万のうち、いくらを資本金にする？<br>
+          残りは個人の生活費になる。
+        </p>
+        <div class="slider-section">
+          <div class="slider-label">
             <span>資本金</span>
-            <span class="amount">${money(capital)}</span>
+            <span id="capital-value">Ƴ1,000,000</span>
           </div>
-          <div class="settlement-row">
-            <span>繰越利益</span>
-            <span class="amount ${moneyClass(retainedEarnings)}">${money(retainedEarnings)}</span>
+          <input type="range" min="100000" max="4000000" step="100000" value="1000000"
+            oninput="document.getElementById('capital-value').textContent='Ƴ'+Number(this.value).toLocaleString()">
+          <div class="slider-hint">
+            個人の残り: <span id="capital-personal">Ƴ4,000,000</span>
           </div>
         </div>
+        <script>
+          document.querySelector('.slider-section input').addEventListener('input', function() {
+            const remain = 5000000 - Number(this.value);
+            document.getElementById('capital-personal').textContent = 'Ƴ' + remain.toLocaleString();
+          });
+        </script>
+        <button class="btn btn-block" style="margin-top:12px" onclick="App.setCapital(Number(document.querySelector('.slider-section input').value))">決定</button>
       </div>
-    </div>
-  `;
-}
+    `;
+  },
 
-export function endingScreen(state, rank) {
-  const records = state.periodRecords;
-  return `
-    <div class="title-logo fade-in">
-      <h1>${rank.title}</h1>
-      <div class="subtitle">ランク：${rank.grade}</div>
-    </div>
-    <div class="narrative fade-in fade-in-delay-1">${rank.description}</div>
-    <div class="settlement-table fade-in fade-in-delay-2">
-      <h3>📊 経営成績（${records.length}年間）</h3>
-      ${records.map(r => `
-        <div class="settlement-row">
-          <span>${r.period}期</span>
-          <span class="amount">売上 ${money(r.revenue)}</span>
-          <span class="amount ${moneyClass(r.profit)}">利益 ${money(r.profit)}</span>
+  renderSalarySelect() {
+    return `
+      <div class="panel">
+        <div class="panel-title">💼 役員報酬を設定</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">
+          自分の月給をいくらにする？<br>
+          一度決めたら1年間変更できない。<br>
+          高すぎると会社のお金がなくなる。低すぎると生活できない。
+        </p>
+        <div class="slider-section">
+          <div class="slider-label">
+            <span>月額役員報酬</span>
+            <span id="salary-value">Ƴ200,000</span>
+          </div>
+          <input type="range" min="0" max="500000" step="10000" value="200000"
+            oninput="document.getElementById('salary-value').textContent='Ƴ'+Number(this.value).toLocaleString(); UI.updateSalaryHint(this.value)">
+          <div class="slider-hint" id="salary-hint">
+            年間: Ƴ2,400,000 ／ 社会保険料（会社負担）: 月Ƴ28,000
+          </div>
         </div>
-      `).join('')}
-      <div class="settlement-row total">
-        <span>累計納税額</span>
-        <span class="amount">${money(state.totalTaxPaid)}</span>
+        <button class="btn btn-block" style="margin-top:12px" onclick="App.setSalary(Number(document.querySelector('.slider-section input').value))">この金額で起業する！</button>
       </div>
-      <div class="settlement-row">
-        <span>節税で浮いた額</span>
-        <span class="amount positive">${money(state.totalTaxSaved)}</span>
+    `;
+  },
+
+  updateSalaryHint(val) {
+    const v = Number(val);
+    const annual = v * 12;
+    const socialIns = Math.round(v * DATA.TAX.socialInsCompanyRate);
+    document.getElementById('salary-hint').innerHTML =
+      `年間: Ƴ${annual.toLocaleString()} ／ 社会保険料（会社負担）: 月Ƴ${socialIns.toLocaleString()}`;
+  },
+
+  /* ========== 月初画面 ========== */
+  renderMonthStart(state) {
+    // 案件ボード
+    const activeProjects = state.projects.filter(p => p.status === 'active');
+    const waitingProjects = state.projects.filter(p => p.status === 'waiting');
+    const projectsHtml = (activeProjects.length + waitingProjects.length) > 0
+      ? `
+        <div class="panel">
+          <div class="panel-title">📋 案件ボード</div>
+          ${activeProjects.map(p => {
+            const progress = ((p.monthsTotal - p.monthsLeft) / p.monthsTotal) * 100;
+            return `
+              <div class="project-item active">
+                <div class="project-name">${p.icon} ${p.name}</div>
+                <div class="project-detail">報酬: Ƴ${p.price.toLocaleString()} ／ 残り${Math.ceil(p.monthsLeft)}ヶ月</div>
+                <div class="progress-bar"><div class="fill" style="width:${progress}%"></div></div>
+              </div>
+            `;
+          }).join('')}
+          ${waitingProjects.map(p => `
+            <div class="project-item waiting">
+              <div class="project-name">${p.icon} ${p.name}</div>
+              <div class="project-detail">報酬: Ƴ${p.price.toLocaleString()} ／ 待ち（${p.monthsTotal}ヶ月）</div>
+            </div>
+          `).join('')}
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:6px;">
+            制作キャパ: ${getProductionCapacity(state).toFixed(1)} 案件分/月
+          </div>
+        </div>
+      `
+      : '';
+
+    // 従業員
+    const empHtml = state.employees.length > 0
+      ? `
+        <div class="panel">
+          <div class="panel-title">👥 従業員</div>
+          ${state.employees.map(emp => {
+            const satBlocks = Array.from({ length: 5 }, (_, i) => {
+              const threshold = (i + 1) * 20;
+              if (emp.satisfaction >= threshold) {
+                if (emp.satisfaction <= 30) return '<span class="low"></span>';
+                if (emp.satisfaction <= 60) return '<span class="mid"></span>';
+                return '<span class="filled"></span>';
+              }
+              return '<span></span>';
+            }).join('');
+            return `
+              <div class="employee-card">
+                <div class="emp-info">
+                  <div class="emp-name">${emp.name}（${emp.label}）</div>
+                  <div class="emp-detail">給料: Ƴ${emp.salary.toLocaleString()}/月</div>
+                </div>
+                <div>
+                  <div style="font-size:0.7rem;color:var(--text2);text-align:right;">満足度</div>
+                  <div class="satisfaction-bar">${satBlocks}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `
+      : '';
+
+    // 売掛金
+    const recvHtml = state.receivables.length > 0
+      ? `
+        <div class="panel">
+          <div class="panel-title">📄 入金予定（売掛金）</div>
+          ${state.receivables.map(r => `
+            <div class="pl-row">
+              <span>${r.name}</span>
+              <span>${UI.money(r.amount)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `
+      : '';
+
+    return `
+      <div class="panel">
+        <div class="panel-title">📅 ${state.period}期目 ${state.month}月</div>
+        <p style="font-size:0.88rem;">さて、今月はどうする？</p>
       </div>
-      <div class="settlement-row">
-        <span>最終 法人口座</span>
-        <span class="amount ${moneyClass(state.corporateCash)}">${money(state.corporateCash)}</span>
+      ${projectsHtml}
+      ${empHtml}
+      ${recvHtml}
+      <button class="btn btn-block" onclick="App.startCardPhase()">カードを引く</button>
+    `;
+  },
+
+  /* ========== カード選択 ========== */
+  renderCardSelect(state) {
+    const remaining = DATA.CARDS_PLAY - state.selectedCards.length;
+    const canSkip = state.selectedCards.length > 0;
+
+    const handHtml = state.hand.map((card, i) => {
+      const isSelected = state.selectedCards.includes(i);
+      const canSelect = !isSelected && remaining > 0 && state.hp >= card.hpCost;
+      const catClass = card.category;
+
+      return `
+        <div class="card ${isSelected ? 'selected' : ''} ${!canSelect && !isSelected ? 'disabled' : ''}"
+             onclick="${canSelect ? `App.selectCard(${i})` : ''}">
+          <div class="card-header">
+            <span class="card-name">${card.icon} ${card.name}</span>
+            <span class="card-cat ${catClass}">${card.category}</span>
+          </div>
+          <div class="card-desc">${card.description}</div>
+          <div class="card-stats">
+            <span>❤️ -${card.hpCost}</span>
+            ${isSelected ? '<span style="color:var(--green);">✓ 選択済み</span>' : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="panel">
+        <div class="panel-title">🃏 カードを選択</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">
+          あと<strong>${remaining}枚</strong>選べます（体力が足りないカードは使えません）
+        </p>
       </div>
-    </div>
-    <button class="btn btn-primary fade-in fade-in-delay-4" id="btn-share">結果をシェアする</button>
-    <button class="btn fade-in fade-in-delay-5" id="btn-retry">もう一度起業する</button>
-  `;
-}
+      <div class="hand-area">${handHtml}</div>
+      ${canSkip ? '<button class="btn btn-block btn-secondary" onclick="App.skipRemainingCards()">これで決定</button>' : ''}
+    `;
+  },
+
+  /* ========== コスト選択 ========== */
+  renderCostSelect(state, card) {
+    const optionsHtml = card.costOptions.map((opt, i) => `
+      <div class="cost-option" onclick="App.selectCostOption(${i})">
+        <div class="cost-label">${opt.label}${opt.cost > 0 ? ` （Ƴ${opt.cost.toLocaleString()}）` : ' （無料）'}</div>
+        <div class="cost-detail">${opt.desc}</div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="panel">
+        <div class="panel-title">${card.icon} ${card.name}</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">どれくらい投じる？</p>
+        <div class="cost-select">${optionsHtml}</div>
+      </div>
+    `;
+  },
+
+  /* ========== 見積もり画面 ========== */
+  renderQuoteInput(state, project) {
+    const accAdvice = state.accountant !== 'none'
+      ? `<div class="advisor-box">
+           <div class="advisor-name">💬 ${DATA.ACCOUNTANTS[state.accountant].name}</div>
+           「Ƴ${project.basePrice.toLocaleString()}くらいが相場ですね。安すぎると赤字、高すぎると逃げられます。」
+         </div>`
+      : '';
+
+    return `
+      <div class="panel">
+        <div class="panel-title">💼 見積もりを出す</div>
+        <div style="font-size:0.9rem;margin-bottom:8px;">
+          <strong>${project.icon} ${project.name}</strong><br>
+          <span style="color:var(--text2);">工期: 約${project.monthsTotal}ヶ月</span>
+        </div>
+        <div class="quote-section">
+          <div class="quote-range">
+            <span>Ƴ${project.minPrice.toLocaleString()}</span>
+            <span>相場 Ƴ${project.basePrice.toLocaleString()}</span>
+            <span>Ƴ${project.maxPrice.toLocaleString()}</span>
+          </div>
+          <div class="quote-input-row">
+            <input type="range" min="${project.minPrice}" max="${project.maxPrice}"
+              step="10000" value="${project.basePrice}"
+              oninput="UI.updateQuoteUI(this.value, ${project.basePrice})">
+            <span class="quote-value" id="quote-val">Ƴ${project.basePrice.toLocaleString()}</span>
+          </div>
+          <div class="quote-prob" id="quote-prob">受注確率: ${Math.round(calcWinRate(project, project.basePrice) * 100)}%</div>
+        </div>
+        ${accAdvice}
+        <button class="btn btn-block" style="margin-top:12px" onclick="App.submitQuote(Number(document.querySelector('.quote-input-row input').value))">見積もり送付</button>
+      </div>
+    `;
+  },
+
+  updateQuoteUI(val, basePrice) {
+    const v = Number(val);
+    document.getElementById('quote-val').textContent = 'Ƴ' + v.toLocaleString();
+    // 受注確率を概算で表示
+    const ratio = v / basePrice;
+    let rate = 1.0 - (ratio - 0.5) * 0.6;
+    rate = Math.max(0.05, Math.min(0.95, rate));
+    const pct = Math.round(rate * 100);
+    const probEl = document.getElementById('quote-prob');
+    probEl.textContent = `受注確率: 約${pct}%`;
+    probEl.style.color = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--orange)' : 'var(--red)';
+  },
+
+  /* ========== カード結果 ========== */
+  renderCardResult(state, results) {
+    const lines = results.map(r => `<div class="${r.type}">${r.text}</div>`).join('');
+    return `
+      <div class="result-log">${lines}</div>
+      <button class="btn btn-block" onclick="App.afterCardResult()">次へ</button>
+    `;
+  },
+
+  /* ========== 月末画面 ========== */
+  renderMonthEnd(state, log) {
+    const hasAccountant = state.accountant !== 'none';
+
+    let detailHtml;
+    if (hasAccountant) {
+      detailHtml = log.map(item => `
+        <div class="pl-row">
+          <span>${item.text.split(':')[0]}</span>
+          <span class="${item.type === 'positive' ? 'positive' : item.type === 'negative' ? 'negative' : ''}">${item.text.includes(':') ? item.text.split(':').slice(1).join(':').trim() : ''}</span>
+        </div>
+      `).join('');
+    } else {
+      // 税理士なし：合計のみ
+      const totalLine = log.find(l => l.text.includes('合計支出'));
+      const balanceLine = log.find(l => l.text.includes('残高'));
+      const incomeLine = log.filter(l => l.type === 'positive');
+      detailHtml = `
+        ${incomeLine.map(l => `<div class="pl-row"><span>${l.text}</span></div>`).join('')}
+        ${totalLine ? `<div class="pl-row total"><span>合計支出</span><span class="negative">${totalLine.text.split(':')[1] || ''}</span></div>` : ''}
+        ${balanceLine ? `<div class="pl-row total"><span>残高</span><span class="${state.balance < 0 ? 'negative' : ''}">${balanceLine.text.split(':')[1] || ''}</span></div>` : ''}
+        <div style="font-size:0.78rem;color:var(--text2);margin-top:8px;">※ 税理士と契約すると内訳が見えます</div>
+      `;
+    }
+
+    return `
+      <div class="panel">
+        <div class="panel-title">📊 ${state.period}期目 ${state.month}月 月末処理</div>
+        ${detailHtml}
+      </div>
+      <button class="btn btn-block" onclick="App.nextMonth()">翌月へ</button>
+    `;
+  },
+
+  /* ========== 決算画面 ========== */
+  renderSettlement(state, result) {
+    const hasAccountant = state.accountant !== 'none';
+    const hasAdvanced = state.accountant === 'advanced';
+
+    const maxBar = Math.max(result.revenue, result.expense, 1);
+    const revPct = (result.revenue / maxBar) * 100;
+    const expPct = (result.expense / maxBar) * 100;
+
+    let plHtml = '';
+    if (hasAccountant) {
+      plHtml = `
+        <div class="panel">
+          <div class="panel-title">📊 損益計算書（P/L）</div>
+          <div class="pl-row"><span>売上高</span><span class="positive">${UI.money(result.revenue)}</span></div>
+          <div class="pl-bar revenue" style="width:${revPct}%"></div>
+          <div class="pl-row"><span>経費合計</span><span class="negative">${UI.money(-result.expense)}</span></div>
+          <div class="pl-bar expense" style="width:${expPct}%"></div>
+          <div class="pl-row total"><span>営業利益</span><span class="${result.profit >= 0 ? 'positive' : 'negative'}">${UI.money(result.profit)}</span></div>
+          ${result.lossCarryforward > 0 ? `<div style="font-size:0.78rem;color:var(--text2);">繰越欠損金: Ƴ${result.lossCarryforward.toLocaleString()}</div>` : ''}
+        </div>
+        <div class="panel">
+          <div class="panel-title">🏛️ 税金</div>
+          <div class="pl-row"><span>法人税</span><span>${UI.money(result.corpTax)}</span></div>
+          <div class="pl-row"><span>均等割</span><span>${UI.money(result.equalTax)}</span></div>
+          <div style="font-size:0.75rem;color:var(--text2);padding-left:12px;">← 赤字でもかかります</div>
+          <div class="pl-row"><span>事業税</span><span>${UI.money(result.bizTax)}</span></div>
+          ${result.consumptionTax > 0 ? `<div class="pl-row"><span>消費税</span><span>${UI.money(result.consumptionTax)}</span></div>` : ''}
+          <div class="pl-row total"><span>税金合計</span><span class="negative">${UI.money(-result.totalTax)}</span></div>
+        </div>
+      `;
+    } else {
+      plHtml = `
+        <div class="panel">
+          <div class="panel-title">📊 第${state.period}期 決算</div>
+          <div class="pl-row total"><span>売上高</span><span>${UI.money(result.revenue)}</span></div>
+          <div class="pl-row total"><span>税金合計</span><span class="negative">${UI.money(-result.totalTax)}</span></div>
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:8px;">※ 税理士と契約すると詳細が見えます</div>
+        </div>
+      `;
+    }
+
+    // B/S（敏腕税理士のみ）
+    let bsHtml = '';
+    if (hasAdvanced) {
+      const assets = state.balance;
+      const liabilities = state.loans.reduce((sum, l) => sum + l.monthlyRepay * l.remainingMonths, 0);
+      const equity = assets - liabilities;
+      bsHtml = `
+        <div class="panel">
+          <div class="panel-title">📋 貸借対照表（B/S）</div>
+          <div class="pl-row"><span>資産合計</span><span>${UI.money(assets)}</span></div>
+          <div class="pl-row"><span>負債合計</span><span>${UI.money(liabilities)}</span></div>
+          <div class="pl-row total"><span>純資産</span><span class="${equity >= 0 ? 'positive' : 'negative'}">${UI.money(equity)}</span></div>
+        </div>
+      `;
+    }
+
+    // 税理士アドバイス
+    let adviceHtml = '';
+    if (hasAccountant) {
+      const acc = DATA.ACCOUNTANTS[state.accountant];
+      let advice = '';
+      if (result.profit < 0) advice = '赤字ですが、繰越欠損金として来期以降に活かせます。まずは売上を伸ばしましょう。';
+      else if (result.totalTax > result.profit * 0.4) advice = '税負担が重いですね。節税カードの活用を検討しましょう。';
+      else advice = '順調ですね！来期はさらなる成長を目指しましょう。';
+
+      adviceHtml = `
+        <div class="advisor-box">
+          <div class="advisor-name">💬 ${acc.name}</div>
+          ${advice}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="panel">
+        <div class="panel-title">📘 第${state.period}期 決算</div>
+      </div>
+      ${plHtml}
+      ${bsHtml}
+      ${adviceHtml}
+      <button class="btn btn-block" onclick="App.afterSettlement()">${state.period >= 5 ? 'エンディングへ' : '来期の設定へ'}</button>
+    `;
+  },
+
+  /* ========== 期首設定 ========== */
+  renderPeriodSetup(state) {
+    return `
+      <div class="panel">
+        <div class="panel-title">🔄 第${state.period}期スタート</div>
+        <p style="font-size:0.88rem;margin-bottom:12px;">新年度です。役員報酬を再設定できます。</p>
+        <div class="slider-section">
+          <div class="slider-label">
+            <span>月額役員報酬</span>
+            <span id="new-salary-value">Ƴ${state.salary.toLocaleString()}</span>
+          </div>
+          <input type="range" min="0" max="800000" step="10000" value="${state.salary}"
+            oninput="document.getElementById('new-salary-value').textContent='Ƴ'+Number(this.value).toLocaleString()">
+          <div class="slider-hint">
+            現在の残高: ${UI.money(state.balance)}
+          </div>
+        </div>
+        ${state.employees.length > 0 ? `
+          <div style="margin-top:16px;">
+            <div style="font-weight:700;margin-bottom:8px;">従業員の給料調整</div>
+            ${state.employees.map((emp, i) => `
+              <div style="margin-bottom:10px;">
+                <div class="slider-label">
+                  <span>${emp.name}（${emp.label}）</span>
+                  <span id="emp-salary-${i}">Ƴ${emp.salary.toLocaleString()}</span>
+                </div>
+                <input type="range" min="${emp.minSalary || 180000}" max="${emp.maxSalary || 400000}" step="10000" value="${emp.salary}"
+                  data-emp-index="${i}"
+                  oninput="document.getElementById('emp-salary-${i}').textContent='Ƴ'+Number(this.value).toLocaleString()">
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        <button class="btn btn-block" style="margin-top:16px" onclick="App.confirmPeriodSetup()">この設定で開始</button>
+      </div>
+    `;
+  },
+
+  /* ========== 採用選択 ========== */
+  renderHireSelect(state) {
+    // 未雇用のテンプレートからランダムに2人候補を出す
+    const hired = state.employees.map(e => e.name);
+    const available = DATA.EMPLOYEE_TEMPLATES.filter(t => !hired.includes(t.name));
+    const candidates = available.sort(() => Math.random() - 0.5).slice(0, 2);
+
+    if (candidates.length === 0) {
+      return `
+        <div class="panel">
+          <div class="panel-title">👤 採用</div>
+          <p>これ以上の候補者が見つかりませんでした。</p>
+          <button class="btn btn-block" onclick="App.afterCardResult()">戻る</button>
+        </div>
+      `;
+    }
+
+    const html = candidates.map((c, i) => `
+      <button class="choice-btn" onclick="App.hireEmployee(${i})">
+        <div class="choice-title">${c.name}（${c.label}）</div>
+        <div class="choice-desc">希望給料: Ƴ${c.baseSalary.toLocaleString()}/月<br>範囲: Ƴ${c.minSalary.toLocaleString()} 〜 Ƴ${c.maxSalary.toLocaleString()}</div>
+      </button>
+    `).join('');
+
+    return `
+      <div class="panel">
+        <div class="panel-title">👤 採用候補</div>
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">誰を採用する？</p>
+        <div class="btn-group">${html}</div>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="App.afterCardResult()">やめておく</button>
+      </div>
+    `;
+  },
+
+  renderHireSalary(state, candidate) {
+    return `
+      <div class="panel">
+        <div class="panel-title">💰 ${candidate.name}の給料を決める</div>
+        <div class="slider-section">
+          <div class="slider-label">
+            <span>月給</span>
+            <span id="hire-salary-val">Ƴ${candidate.baseSalary.toLocaleString()}</span>
+          </div>
+          <input type="range" min="${candidate.minSalary}" max="${candidate.maxSalary}" step="10000" value="${candidate.baseSalary}"
+            oninput="document.getElementById('hire-salary-val').textContent='Ƴ'+Number(this.value).toLocaleString()">
+          <div class="slider-hint">
+            希望: Ƴ${candidate.baseSalary.toLocaleString()} ／ 低いと不満、高いとコスト増
+          </div>
+        </div>
+        <button class="btn btn-block" style="margin-top:12px" onclick="App.confirmHire(Number(document.querySelector('.slider-section input').value))">この金額で採用</button>
+      </div>
+    `;
+  },
+
+  /* ========== エンディング ========== */
+  renderEnding(state, ending) {
+    return `
+      <div class="panel ending-card">
+        <div style="font-size:0.85rem;color:var(--text2);">5年間の経営が終了しました</div>
+        <div class="ending-rank ${ending.rank}">${ending.rank}ランク</div>
+        <div style="font-size:1.1rem;font-weight:700;margin-bottom:20px;">${ending.title}</div>
+
+        <div class="ending-stats">
+          <div class="pl-row"><span>累計売上</span><span>${UI.money(state.totalRevenue)}</span></div>
+          <div class="pl-row"><span>累計納税</span><span>${UI.money(state.totalTaxPaid)}</span></div>
+          <div class="pl-row"><span>最終残高</span><span class="${state.balance >= 0 ? 'positive' : 'negative'}">${UI.money(state.balance)}</span></div>
+          <div class="pl-row"><span>従業員数</span><span>${state.employees.length}人</span></div>
+          <div class="pl-row"><span>信用スコア</span><span>${state.credit}</span></div>
+          <div class="pl-row total"><span>総合スコア</span><span>${Math.round(ending.score)}</span></div>
+        </div>
+
+        <button class="btn btn-block" style="margin-top:16px" onclick="App.restart()">もう一度起業する</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="App.shareResult('${ending.rank}', '${ending.title}', ${Math.round(ending.score)})">結果をシェア</button>
+      </div>
+    `;
+  },
+
+  /* ========== イベント ========== */
+  renderEvent(event, state) {
+    const choicesHtml = event.choices.map((c, i) => `
+      <button class="choice-btn" onclick="App.selectEventChoice(${i})">
+        <div class="choice-title">${c.text}</div>
+      </button>
+    `).join('');
+
+    return `
+      <div class="event-overlay" onclick="event.stopPropagation()">
+        <div class="event-box">
+          <div class="event-title">${event.title}</div>
+          <div class="event-text">${event.text}</div>
+          <div class="btn-group">${choicesHtml}</div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderEventResult(text) {
+    return `
+      <div class="event-overlay">
+        <div class="event-box">
+          <div class="event-text">${text}</div>
+          <button class="btn btn-block" onclick="App.closeEvent()">OK</button>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ========== ゲームオーバー ========== */
+  renderGameOver(reason) {
+    return `
+      <div class="panel ending-card">
+        <div style="font-size:2rem;margin-bottom:12px;">💀</div>
+        <div style="font-size:1.2rem;font-weight:700;color:var(--red);margin-bottom:12px;">GAME OVER</div>
+        <div style="font-size:0.9rem;margin-bottom:20px;">${reason}</div>
+        <button class="btn btn-block" onclick="App.restart()">もう一度起業する</button>
+      </div>
+    `;
+  },
+};

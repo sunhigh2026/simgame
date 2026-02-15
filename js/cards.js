@@ -1,221 +1,305 @@
-export const CARD_TEMPLATES = [
+/* ========== カードテンプレート ========== */
+const CARD_TEMPLATES = [
   // === 営業系 ===
   {
-    id: 'sales_cold', name: '飛び込み営業', category: 'sales', categoryLabel: '営業',
-    icon: '🚶', description: '片っ端から電話してアポを取る。泥臭いが基本。',
-    cost: 0, revenueMin: 50000, revenueMax: 200000, failRate: 0.40,
-    failText: '全滅。アポすら取れなかった。', successText: '1件獲得！',
-    rarity: 1, count: 4, period: 1,
+    id: 'sales_visit',
+    name: '飛び込み営業',
+    category: 'sales',
+    icon: '🚪',
+    description: '地元企業を回って仕事を探す',
+    hpCost: 2,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '控えめ', cost: 5000, projectChance: 0.3, projectTier: 0, desc: '名刺交換程度' },
+      { label: '標準', cost: 15000, projectChance: 0.55, projectTier: 1, desc: '資料持参で訪問' },
+      { label: '攻め', cost: 40000, projectChance: 0.75, projectTier: 2, desc: '手土産持って徹底訪問' },
+    ],
   },
   {
-    id: 'sales_network', name: '交流会に参加', category: 'sales', categoryLabel: '営業',
-    icon: '🤝', description: '異業種交流会で名刺を配りまくる。',
-    cost: 30000, revenueMin: 100000, revenueMax: 300000, failRate: 0.30,
-    failText: '名刺交換だけで終わった。', successText: '交流会で見込み客を見つけた！',
-    rarity: 1, count: 3, period: 1,
+    id: 'sales_web_ad',
+    name: 'Web広告を出す',
+    category: 'sales',
+    icon: '📢',
+    description: 'ネット広告で問い合わせを狙う',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '少額', cost: 30000, projectChance: 0.25, projectTier: 0, desc: '月3万円の広告' },
+      { label: '中額', cost: 100000, projectChance: 0.5, projectTier: 1, desc: '月10万円の広告' },
+      { label: '大量投下', cost: 300000, projectChance: 0.7, projectTier: 2, desc: '月30万円ガッツリ' },
+    ],
   },
   {
-    id: 'sales_sns', name: 'SNSで発信', category: 'sales', categoryLabel: '営業',
-    icon: '📱', description: '実績や知見を投稿。じわじわ効いてくる。',
-    cost: 0, revenueMin: 0, revenueMax: 150000, failRate: 0.55,
-    failText: 'いいね3件。反応なし。', successText: '投稿がバズった！問い合わせが来た！',
-    rarity: 1, count: 3, period: 1,
-    cumulative: true, cumulativeBonus: 20000,
+    id: 'sales_referral',
+    name: '知人に声をかける',
+    category: 'sales',
+    icon: '🤝',
+    description: '前職の人脈や知り合いに営業',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '軽く連絡', cost: 0, projectChance: 0.2, projectTier: 0, desc: 'メールだけ' },
+      { label: '食事に誘う', cost: 8000, projectChance: 0.4, projectTier: 1, desc: 'ランチおごり' },
+      { label: '会食セッティング', cost: 30000, projectChance: 0.6, projectTier: 2, desc: 'ディナーで本気トーク' },
+    ],
   },
   {
-    id: 'sales_referral', name: '紹介営業', category: 'sales', categoryLabel: '営業',
-    icon: '💬', description: '既存客や知人からの紹介。信用がないと来ない。',
-    cost: 0, revenueMin: 200000, revenueMax: 500000, failRate: 0.20,
-    failText: '紹介先と条件が合わなかった。', successText: '紹介案件を受注！信頼のおかげだ。',
-    rarity: 2, count: 2, period: 2,
-    requirement: { creditScore: 30 }, requirementText: '信用スコア30以上',
+    id: 'sales_sns',
+    name: 'SNS発信',
+    category: 'sales',
+    icon: '📱',
+    description: '実績や知見を発信して問い合わせを待つ',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: 'ゆるく投稿', cost: 0, projectChance: 0.1, projectTier: 0, desc: '週1投稿' },
+      { label: '毎日投稿', cost: 0, projectChance: 0.2, projectTier: 1, desc: '体力を使うが無料' },
+      { label: 'コンテンツ制作', cost: 20000, projectChance: 0.35, projectTier: 1, desc: 'ブログ+動画も' },
+    ],
+    hpCostByOption: [1, 2, 3],
   },
   {
-    id: 'sales_enterprise', name: '大手に提案', category: 'sales', categoryLabel: '営業',
-    icon: '🏢', description: '大手企業にDM。当たればデカい。',
-    cost: 50000, revenueMin: 500000, revenueMax: 2000000, failRate: 0.60,
-    failText: '提案書すら見てもらえなかった。', successText: '大手案件を受注！！デカい！！',
-    rarity: 3, count: 1, period: 2,
+    id: 'sales_seminar',
+    name: 'セミナー開催',
+    category: 'sales',
+    icon: '🎤',
+    description: '無料セミナーで見込み客を集める',
+    hpCost: 3,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: 'オンライン', cost: 5000, projectChance: 0.35, projectTier: 1, desc: 'Zoom開催' },
+      { label: '会場借りて', cost: 50000, projectChance: 0.55, projectTier: 2, desc: '会議室レンタル' },
+      { label: '大規模', cost: 150000, projectChance: 0.7, projectTier: 3, desc: 'ホール借りて本格開催' },
+    ],
   },
   {
-    id: 'sales_repeat', name: 'リピーター対応', category: 'sales', categoryLabel: '営業',
-    icon: '🔄', description: '既存客に追加提案。安定の売上。',
-    cost: 0, revenueMin: 150000, revenueMax: 350000, failRate: 0.10,
-    failText: '今は追加の予算がないそうだ。', successText: 'リピーターから追加受注！',
-    rarity: 2, count: 2, period: 2,
-    requirement: { totalRevenue: 5000000 }, requirementText: '累計売上Ƴ500万以上',
+    id: 'sales_partnership',
+    name: '代理店・提携営業',
+    category: 'sales',
+    icon: '🔗',
+    description: '他社と提携して案件を回してもらう',
+    hpCost: 2,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: '提案だけ', cost: 0, projectChance: 0.2, projectTier: 1, desc: '紹介手数料10%' },
+      { label: '契約締結', cost: 50000, projectChance: 0.45, projectTier: 2, desc: '紹介手数料15%' },
+      { label: '専属契約', cost: 150000, projectChance: 0.65, projectTier: 3, desc: '手数料20%だが安定' },
+    ],
   },
 
   // === 投資系 ===
   {
-    id: 'invest_ad', name: 'SNS広告', category: 'invest', categoryLabel: '投資',
-    icon: '📢', description: '広告を打って集客する。即効性あり。',
-    cost: 150000, revenueMin: 200000, revenueMax: 600000, failRate: 0.20,
-    failText: '広告費だけ消えた…。ターゲット設定が甘かった。',
-    successText: '広告経由で問い合わせが増えた！',
-    rarity: 1, count: 2, period: 1,
+    id: 'invest_pc',
+    name: 'PC・機材を買う',
+    category: 'invest',
+    icon: '🖥️',
+    description: '制作効率を上げる設備投資',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '最低限', cost: 80000, effect: { capacityBonus: 0.1 }, desc: '中古PC' },
+      { label: '標準', cost: 200000, effect: { capacityBonus: 0.2 }, desc: '新品ミドルスペック' },
+      { label: 'ハイスペ', cost: 500000, effect: { capacityBonus: 0.35 }, desc: 'フルスペック＋モニタ2枚' },
+    ],
+    oneTime: true,
   },
   {
-    id: 'invest_website', name: 'Webサイト作成', category: 'invest', categoryLabel: '投資',
-    icon: '🌐', description: '会社のWebサイトを作る。信用と集客の基盤。',
-    cost: 300000, permanent: true,
-    permanentEffect: { revenueBase: 50000, creditScore: 5 },
-    permanentLabel: '毎月の売上ベース+Ƴ5万 / 信用+5',
-    failRate: 0, rarity: 2, count: 1, period: 1, unique: true,
+    id: 'invest_office',
+    name: 'オフィスを借りる',
+    category: 'invest',
+    icon: '🏠',
+    description: '自宅から脱出。信用力UP',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: 'コワーキング', cost: 0, effect: { monthlyExpense: 20000, creditBonus: 3 }, desc: '月Ƴ20,000' },
+      { label: '小さな事務所', cost: 100000, effect: { monthlyExpense: 60000, creditBonus: 7 }, desc: '敷金+月Ƴ60,000' },
+      { label: 'しっかりオフィス', cost: 300000, effect: { monthlyExpense: 120000, creditBonus: 12 }, desc: '敷金+月Ƴ120,000' },
+    ],
+    oneTime: true,
   },
   {
-    id: 'invest_office', name: 'オフィスを借りる', category: 'invest', categoryLabel: '投資',
-    icon: '🏠', description: '自宅から脱出。信用UPだが固定費が重い。',
-    cost: 500000, permanent: true,
-    permanentEffect: { creditScore: 10, monthlyExpense: 150000 },
-    permanentLabel: '信用+10 / 毎月固定費+Ƴ15万',
-    failRate: 0, rarity: 2, count: 1, period: 1, unique: true,
-  },
-  {
-    id: 'invest_equipment', name: '設備投資', category: 'invest', categoryLabel: '投資',
-    icon: '🖥️', description: '良い機材を揃える。品質UPで単価が上がる。',
-    cost: 800000, permanent: true,
-    permanentEffect: { revenueMultiplier: 1.10 },
-    permanentLabel: '売上+10%',
-    failRate: 0, rarity: 2, count: 1, period: 2, unique: true,
+    id: 'invest_tool',
+    name: '業務ツール導入',
+    category: 'invest',
+    icon: '🛠️',
+    description: '制作・管理ツールで効率化',
+    hpCost: 1,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '無料ツール', cost: 0, effect: { capacityBonus: 0.05 }, desc: '使い勝手はイマイチ' },
+      { label: '有料ツール', cost: 0, effect: { monthlyExpense: 10000, capacityBonus: 0.15 }, desc: '月Ƴ10,000' },
+      { label: 'フルセット', cost: 50000, effect: { monthlyExpense: 25000, capacityBonus: 0.25 }, desc: '初期費+月Ƴ25,000' },
+    ],
+    oneTime: true,
   },
 
   // === 人材系 ===
   {
-    id: 'hr_parttime', name: 'バイトを雇う', category: 'hr', categoryLabel: '人材',
-    icon: '👤', description: 'まずはバイトから。売上の天井が上がる。',
-    cost: 50000, permanent: true,
-    permanentEffect: { revenueCap: 300000, monthlyExpense: 120000 },
-    permanentLabel: '売上上限+Ƴ30万/月 / 人件費Ƴ12万/月',
-    failRate: 0.10,
-    failText: '面接したけど辞退された。採用費だけ消えた…。',
-    successText: 'バイトのスズキさんが入社した！',
-    rarity: 1, count: 2, period: 1,
-    addsEmployee: { name: 'スズキ', type: 'parttime', baseSalary: 120000, ability: 'B', satisfaction: 60 },
+    id: 'hr_recruit',
+    name: '人を採用する',
+    category: 'hr',
+    icon: '👤',
+    description: '従業員を1人雇う',
+    hpCost: 2,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '知人紹介', cost: 0, hireChance: 0.3, desc: '無料だが見つかるか不明' },
+      { label: '求人サイト', cost: 50000, hireChance: 0.6, desc: '掲載費Ƴ50,000' },
+      { label: '人材紹介', cost: 200000, hireChance: 0.85, desc: '紹介手数料Ƴ200,000' },
+    ],
+    maxEmployees: 3,
   },
   {
-    id: 'hr_fulltime', name: '正社員を雇う', category: 'hr', categoryLabel: '人材',
-    icon: '👔', description: '正社員。能力は高いが固定費が重い。',
-    cost: 100000, permanent: true,
-    permanentEffect: { revenueCap: 600000, monthlyExpense: 280000 },
-    permanentLabel: '売上上限+Ƴ60万/月 / 人件費Ƴ28万/月',
-    failRate: 0.05,
-    failText: '内定を出したが辞退された。',
-    successText: '正社員のヤマダさんが入社した！',
-    rarity: 2, count: 1, period: 2,
-    addsEmployee: { name: 'ヤマダ', type: 'fulltime', baseSalary: 220000, ability: 'A', satisfaction: 70 },
-  },
-  {
-    id: 'hr_outsource', name: '外注に依頼', category: 'hr', categoryLabel: '人材',
-    icon: '📋', description: '今月だけ外注で増員。継続コストなし。',
-    cost: 200000, revenueMin: 0, revenueMax: 0, failRate: 0.15,
-    failText: '外注先の品質が微妙だった…。手直しに時間を取られた。',
-    successText: '外注で今月のキャパが増えた！',
-    rarity: 1, count: 2, period: 1,
-    tempEffect: { revenueCap: 500000 },
+    id: 'hr_training',
+    name: '従業員を育成する',
+    category: 'hr',
+    icon: '📚',
+    description: '研修・OJTでスキルアップ',
+    hpCost: 2,
+    period: [2,3,4,5],
+    requiresEmployee: true,
+    costOptions: [
+      { label: '社内OJT', cost: 0, effect: { skillUp: 0.05 }, desc: '自分で教える（体力消費多）' },
+      { label: '外部研修', cost: 50000, effect: { skillUp: 0.1 }, desc: '1日研修' },
+      { label: '集中研修', cost: 150000, effect: { skillUp: 0.2 }, desc: '1週間の集中コース' },
+    ],
+    hpCostByOption: [3, 2, 1],
   },
 
   // === 節税系 ===
   {
-    id: 'tax_smallbiz', name: '小商人積立', category: 'tax', categoryLabel: '節税',
-    icon: '🏦', description: '月Ƴ7万の積立。年間Ƴ84万を所得控除。将来解約で戻る。',
-    cost: 0, permanent: true,
-    permanentEffect: { monthlyExpense: 70000, taxDeduction: 840000 },
-    permanentLabel: '月Ƴ7万積立 / 年Ƴ84万の所得控除',
-    failRate: 0, rarity: 2, count: 1, period: 2, unique: true,
+    id: 'tax_accountant',
+    name: '税理士と契約する',
+    category: 'tax',
+    icon: '🧮',
+    description: '月次P/Lが見えるようになる',
+    hpCost: 0,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '佐藤税理士（格安）', cost: 0, effect: { accountant: 'basic' }, desc: '月額Ƴ30,000' },
+    ],
+    requireAccountant: 'none',
   },
   {
-    id: 'tax_safety', name: '安全共済機構', category: 'tax', categoryLabel: '節税',
-    icon: '🛡️', description: '月Ƴ20万の積立。年間Ƴ240万を経費化。倒産防止のセーフティネット。',
-    cost: 0, permanent: true,
-    permanentEffect: { monthlyExpense: 200000, taxDeduction: 2400000 },
-    permanentLabel: '月Ƴ20万積立 / 年Ƴ240万を経費化',
-    failRate: 0, rarity: 2, count: 1, period: 2, unique: true,
+    id: 'tax_accountant_adv',
+    name: '敏腕税理士に乗り換え',
+    category: 'tax',
+    icon: '🧮',
+    description: 'B/Sも見える。高度な節税助言',
+    hpCost: 0,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: '伊藤税理士（敏腕）', cost: 30000, effect: { accountant: 'advanced' }, desc: '月額Ƴ80,000 + 顧問料Ƴ30,000' },
+    ],
+    requireAccountant: 'basic',
   },
   {
-    id: 'tax_bonus', name: '決算賞与', category: 'tax', categoryLabel: '節税',
-    icon: '🎁', description: '従業員にボーナスを出して経費にする。決算月のみ。',
-    cost: 0, failRate: 0, rarity: 2, count: 1, period: 2,
-    requirement: { hasEmployees: true }, requirementText: '従業員1人以上',
-    settlementOnly: true, interactive: true,
+    id: 'tax_shokibo',
+    name: '小規模企業共済に加入',
+    category: 'tax',
+    icon: '🏦',
+    description: '積立で退職金＆節税',
+    hpCost: 0,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '月1万', cost: 0, effect: { monthlyExpense: 10000, taxDeduction: 120000 }, desc: '年間Ƴ12万の所得控除' },
+      { label: '月3万', cost: 0, effect: { monthlyExpense: 30000, taxDeduction: 360000 }, desc: '年間Ƴ36万の所得控除' },
+      { label: '月7万', cost: 0, effect: { monthlyExpense: 70000, taxDeduction: 840000 }, desc: '年間Ƴ84万の所得控除' },
+    ],
+    oneTime: true,
+  },
+  {
+    id: 'tax_car',
+    name: '社用車をリースする',
+    category: 'tax',
+    icon: '🚗',
+    description: '経費計上で節税。移動も楽に',
+    hpCost: 0,
+    period: [2,3,4,5],
+    costOptions: [
+      { label: '軽自動車', cost: 0, effect: { monthlyExpense: 25000, taxDeduction: 300000, creditBonus: 2 }, desc: '月Ƴ25,000リース' },
+      { label: '普通車', cost: 0, effect: { monthlyExpense: 50000, taxDeduction: 600000, creditBonus: 4 }, desc: '月Ƴ50,000リース' },
+      { label: '高級車', cost: 0, effect: { monthlyExpense: 100000, taxDeduction: 1200000, auditRisk: 15 }, desc: '月Ƴ100,000 ⚠税務調査リスク' },
+    ],
+    oneTime: true,
   },
 
   // === 特殊系 ===
   {
-    id: 'special_accountant', name: '税理士と契約する', category: 'special', categoryLabel: '特殊',
-    icon: '📝', description: '月Ƴ3万の顧問契約。月次P/Lが見えるようになる。節税アドバイスも。',
-    cost: 0, permanent: true,
-    permanentEffect: { monthlyExpense: 30000 },
-    permanentLabel: '月Ƴ3万 / 月次P/L・決算詳細が見える',
-    failRate: 0, rarity: 1, count: 2, period: 1, unique: true,
-    special: 'accountant_basic',
+    id: 'special_loan',
+    name: '融資を申し込む',
+    category: 'special',
+    icon: '🏦',
+    description: '銀行融資で資金調達',
+    hpCost: 2,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: 'Ƴ100万', cost: 0, loanAmount: 1000000, monthlyRepay: 30000, approvalBase: 0.5, desc: '返済月Ƴ3万×36回' },
+      { label: 'Ƴ300万', cost: 0, loanAmount: 3000000, monthlyRepay: 85000, approvalBase: 0.35, desc: '返済月Ƴ8.5万×36回' },
+      { label: 'Ƴ500万', cost: 0, loanAmount: 5000000, monthlyRepay: 145000, approvalBase: 0.2, desc: '返済月Ƴ14.5万×36回' },
+    ],
   },
   {
-    id: 'special_accountant_adv', name: '敏腕税理士に乗り換え', category: 'special', categoryLabel: '特殊',
-    icon: '👓', description: '月Ƴ8万。P/L+B/Sが見える。高度な節税提案。',
-    cost: 0, permanent: true,
-    permanentEffect: { monthlyExpense: 50000 },
-    permanentLabel: '月額Ƴ3万→Ƴ8万に変更 / B/S解放',
-    failRate: 0, rarity: 3, count: 1, period: 3, unique: true,
-    requirement: { accountant: 'basic' }, requirementText: '税理士（佐藤）契約中',
-    special: 'accountant_advanced',
-  },
-  {
-    id: 'special_loan', name: '融資申請', category: 'special', categoryLabel: '特殊',
-    icon: '🏛️', description: '銀行から借りる。審査あり。',
-    cost: 0, failRate: 0.40,
-    failText: '審査の結果、今回は見送りとなりました。',
-    successText: '融資が通った！',
-    rarity: 3, count: 1, period: 2, interactive: true,
-  },
-  {
-    id: 'special_subsidy', name: '助成金申請', category: 'special', categoryLabel: '特殊',
-    icon: '📄', description: '国の助成金に応募。通れば返済不要のお金が入る。',
-    cost: 0, revenueMin: 500000, revenueMax: 1000000, failRate: 0.50,
-    failText: '不採択。書類が足りなかった…。', successText: '助成金に採択された！返済不要！',
-    rarity: 3, count: 1, period: 2,
+    id: 'special_subsidy',
+    name: '助成金を申請する',
+    category: 'special',
+    icon: '📋',
+    description: '返済不要の助成金にチャレンジ',
+    hpCost: 3,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '小規模助成', cost: 5000, subsidyAmount: 200000, approvalChance: 0.4, desc: '採択率40%' },
+      { label: '中規模助成', cost: 20000, subsidyAmount: 500000, approvalChance: 0.25, desc: '採択率25%' },
+      { label: '大型助成', cost: 50000, subsidyAmount: 1500000, approvalChance: 0.1, desc: '採択率10% 書類が大変' },
+    ],
+    hpCostByOption: [2, 3, 4],
   },
 
   // === 休息 ===
   {
-    id: 'rest', name: '休む', category: 'rest', categoryLabel: '休息',
-    icon: '🏖️', description: '何もしない。でも体力は戻る。',
-    cost: 0, failRate: 0, rarity: 1, count: 2, period: 1,
-    restoreStamina: 20,
+    id: 'rest',
+    name: '休む',
+    category: 'rest',
+    icon: '😴',
+    description: '体力を回復する。何もしない勇気。',
+    hpCost: 0,
+    period: [1,2,3,4,5],
+    costOptions: [
+      { label: '軽く休む', cost: 0, hpRecover: 3, desc: '半日ゴロゴロ' },
+      { label: 'しっかり休む', cost: 0, hpRecover: 5, desc: '丸一日OFF' },
+      { label: '旅行する', cost: 50000, hpRecover: 8, desc: '温泉旅行でリフレッシュ' },
+    ],
   },
 ];
 
-export function buildDeck(period, gameState) {
-  const deck = [];
-  for (const tmpl of CARD_TEMPLATES) {
-    if (tmpl.period > period) continue;
-    if (tmpl.unique && gameState.usedUniqueCards.includes(tmpl.id)) continue;
-    if (tmpl.requirement) {
-      if (tmpl.requirement.creditScore && gameState.creditScore < tmpl.requirement.creditScore) continue;
-      if (tmpl.requirement.totalRevenue && gameState.totalRevenue < tmpl.requirement.totalRevenue) continue;
-      if (tmpl.requirement.hasEmployees && gameState.employees.length === 0) continue;
-      if (tmpl.requirement.accountant && gameState.accountant !== tmpl.requirement.accountant) continue;
-    }
-    for (let i = 0; i < tmpl.count; i++) {
-      deck.push({ ...tmpl, instanceId: `${tmpl.id}_${i}_${Math.random().toString(36).slice(2, 8)}` });
-    }
-  }
-  return shuffle(deck);
+/* ========== デッキ構築 ========== */
+function buildDeck(state) {
+  const period = state.period;
+  let cards = CARD_TEMPLATES.filter(c => c.period.includes(period));
+
+  // --- 条件フィルタ ---
+  cards = cards.filter(card => {
+    // 税理士：すでに契約済みなら除外
+    if (card.id === 'tax_accountant' && state.accountant !== 'none') return false;
+    if (card.id === 'tax_accountant_adv' && state.accountant !== 'basic') return false;
+
+    // oneTime：すでに使用済みなら除外
+    if (card.oneTime && state.usedOneTimeCards.includes(card.id)) return false;
+
+    // 従業員必須カード
+    if (card.requiresEmployee && state.employees.length === 0) return false;
+
+    // 採用上限
+    if (card.id === 'hr_recruit' && state.employees.length >= (card.maxEmployees || 3)) return false;
+
+    return true;
+  });
+
+  return cards;
 }
 
-export function drawHand(deck, count = 5) {
-  const hand = [];
-  for (let i = 0; i < count && deck.length > 0; i++) {
-    hand.push(deck.pop());
-  }
-  return hand;
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+function drawHand(deck, count) {
+  const shuffled = [...deck].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 }
