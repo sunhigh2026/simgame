@@ -1,127 +1,115 @@
-// ========================================
-// ゲーム状態管理
-// ========================================
-
 import { TAX_RATES } from './data.js';
 
 export function createInitialState() {
   return {
-    // 会社情報
     companyName: '',
     companyType: null,
     industry: null,
     capital: 0,
     fiscalMonth: 9,
 
-    // お金
     corporateCash: 0,
     personalCash: 5000000,
     savings: 5000000,
 
-    // 代表給
     monthlySalary: 250000,
 
-    // 期・月
     currentPeriod: 1,
     currentMonth: 1,
     absoluteMonth: 1,
 
-    // 従業員
     employees: [],
 
-    // 累計
     totalRevenue: 0,
     totalExpense: 0,
     totalTaxPaid: 0,
     totalTaxSaved: 0,
     periodRevenue: 0,
     periodExpense: 0,
-    periodProfit: 0,
 
-    // 月次
     monthRevenue: 0,
     monthExpense: 0,
 
-    // 内部スコア
     creditScore: 10,
     brandPower: 0,
     stamina: 100,
     taxRisk: 0,
 
-    // 永続効果
+    // 税理士
+    accountant: null, // null | 'basic' | 'advanced'
+    accountantCost: 0,
+
     permanentEffects: {
       revenueBase: 0,
       revenueMultiplier: 1.0,
       revenueCap: 500000,
       monthlyExpense: 0,
       taxDeduction: 0,
-      creditScore: 0,
     },
 
-    // SNS蓄積
     snsCount: 0,
-
-    // 繰越欠損金
     carryForwardLoss: 0,
-
-    // 期ごとのP/L記録
     periodRecords: [],
-
-    // 使用済みユニークカード
     usedUniqueCards: [],
-
-    // 発火済みイベント
     triggeredEvents: [],
 
-    // デッキ
     deck: [],
     hand: [],
-    discardPile: [],
 
-    // ゲーム状態
+    cashShortMonths: 0,
     phase: 'opening',
     gameOver: false,
     gameOverReason: '',
+
+    // 月の開始時の残高を記録
+    _lastCash: 0,
   };
 }
 
-// 月末処理
 export function processMonthEnd(state) {
-  const result = {
-    items: [],
-    previousCash: state.corporateCash,
-  };
+  const result = { items: [], previousCash: state.corporateCash };
 
-  // 代表給 + 相互扶助金
-  const socialInsurance = Math.floor(state.monthlySalary * TAX_RATES.socialInsuranceRate);
-  const salaryTotal = state.monthlySalary + socialInsurance;
+  // 役員報酬 + 社会保険料
+  const socialIns = Math.floor(state.monthlySalary * TAX_RATES.socialInsuranceRate);
+  const salaryTotal = state.monthlySalary + socialIns;
   state.corporateCash -= salaryTotal;
   state.monthExpense += salaryTotal;
   result.items.push({
-    label: `代表給 + 相互扶助金`,
+    label: '役員報酬 + 社会保険料',
     amount: -salaryTotal,
-    detail: `(給与Ƴ${state.monthlySalary.toLocaleString()} + 扶助金Ƴ${socialInsurance.toLocaleString()})`,
+    detail: `(給与Ƴ${state.monthlySalary.toLocaleString()} + 社保Ƴ${socialIns.toLocaleString()})`,
   });
 
-  // 個人の手取り（簡易計算：所得税+住民税≒20%とする）
+  // 個人の手取り
   const personalTax = Math.floor(state.monthlySalary * 0.20);
-  const personalInsurance = Math.floor(socialInsurance / 2);
-  const takeHome = state.monthlySalary - personalTax - personalInsurance;
+  const personalIns = Math.floor(socialIns / 2);
+  const takeHome = state.monthlySalary - personalTax - personalIns;
   state.personalCash += takeHome;
 
-  // 従業員の給料
+  // 従業員
   for (const emp of state.employees) {
     const empSocial = Math.floor(emp.salary * TAX_RATES.socialInsuranceRate);
     const empTotal = emp.salary + empSocial;
     state.corporateCash -= empTotal;
     state.monthExpense += empTotal;
     result.items.push({
-      label: `${emp.name}さん 給与 + 扶助金`,
+      label: `${emp.name}さん 給与 + 社保`,
       amount: -empTotal,
+      detail: `(給与Ƴ${emp.salary.toLocaleString()} + 社保Ƴ${empSocial.toLocaleString()})`,
     });
   }
 
-  // 永続的な固定費
+  // 税理士費用
+  if (state.accountantCost > 0) {
+    state.corporateCash -= state.accountantCost;
+    state.monthExpense += state.accountantCost;
+    result.items.push({
+      label: '税理士 顧問料',
+      amount: -state.accountantCost,
+    });
+  }
+
+  // 永続固定費（家賃・積立等）
   if (state.permanentEffects.monthlyExpense > 0) {
     state.corporateCash -= state.permanentEffects.monthlyExpense;
     state.monthExpense += state.permanentEffects.monthlyExpense;
@@ -131,7 +119,7 @@ export function processMonthEnd(state) {
     });
   }
 
-  // 基本の運営コスト
+  // 基本運営コスト
   const baseCost = state.industry ? state.industry.baseCost : 30000;
   state.corporateCash -= baseCost;
   state.monthExpense += baseCost;
@@ -147,32 +135,30 @@ export function processMonthEnd(state) {
   state.totalExpense += state.monthExpense;
 
   result.newCash = state.corporateCash;
-  result.cashChange = state.corporateCash - result.previousCash + state.monthRevenue;
 
   // 資金ショートチェック
   if (state.corporateCash < 0) {
     state.cashShortMonths = (state.cashShortMonths || 0) + 1;
     if (state.cashShortMonths >= 2) {
       state.gameOver = true;
-      state.gameOverReason = '2ヶ月連続の資金ショート。支払いができなくなった。';
+      state.gameOverReason = '2ヶ月連続の資金ショート。\n支払いができなくなった。';
     }
   } else {
     state.cashShortMonths = 0;
   }
 
-  // 月次リセット
   state.monthRevenue = 0;
   state.monthExpense = 0;
 
   return result;
 }
 
-// 決算処理
 export function processSettlement(state) {
-  const profit = state.periodRevenue - state.periodExpense;
+  const revenue = state.periodRevenue;
+  const expense = state.periodExpense;
+  const profit = revenue - expense;
   const taxDeduction = state.permanentEffects.taxDeduction;
 
-  // 繰越欠損金の適用
   let taxableIncome = profit;
   let usedCarryForward = 0;
   if (taxableIncome > 0 && state.carryForwardLoss > 0) {
@@ -181,101 +167,87 @@ export function processSettlement(state) {
     state.carryForwardLoss -= usedCarryForward;
   }
 
-  // 節税控除の適用
   let usedDeduction = 0;
   if (taxableIncome > 0 && taxDeduction > 0) {
     usedDeduction = Math.min(taxableIncome, taxDeduction);
     taxableIncome -= usedDeduction;
   }
 
-  // 税金計算
   let corporateTax = 0;
   if (taxableIncome > 0) {
-    if (taxableIncome <= TAX_RATES.corporate.threshold) {
-      corporateTax = Math.floor(taxableIncome * TAX_RATES.corporate.low);
+    if (taxableIncome <= TAX_RATES.corporateTaxThreshold) {
+      corporateTax = Math.floor(taxableIncome * TAX_RATES.corporateTaxLow);
     } else {
       corporateTax = Math.floor(
-        TAX_RATES.corporate.threshold * TAX_RATES.corporate.low +
-        (taxableIncome - TAX_RATES.corporate.threshold) * TAX_RATES.corporate.high
+        TAX_RATES.corporateTaxThreshold * TAX_RATES.corporateTaxLow +
+        (taxableIncome - TAX_RATES.corporateTaxThreshold) * TAX_RATES.corporateTaxHigh
       );
     }
   }
 
   const citizenTax = TAX_RATES.citizenFlat;
-  const businessTax = taxableIncome > 0 ? Math.floor(taxableIncome * TAX_RATES.business) : 0;
+  const businessTax = taxableIncome > 0 ? Math.floor(taxableIncome * TAX_RATES.businessTax) : 0;
 
-  // 取引税（3期目以降 & 前々期売上1000万超）
-  let transactionTax = 0;
-  if (state.currentPeriod >= 3) {
+  let consumptionTax = 0;
+  if (state.currentPeriod >= 3 && state.periodRecords.length >= 2) {
     const twoPeriodAgo = state.periodRecords[state.currentPeriod - 3];
-    if (twoPeriodAgo && twoPeriodAgo.revenue >= TAX_RATES.transactionThreshold) {
-      transactionTax = Math.floor(state.periodRevenue * TAX_RATES.transaction * 0.3);
+    if (twoPeriodAgo && twoPeriodAgo.revenue >= TAX_RATES.consumptionTaxThreshold) {
+      consumptionTax = Math.floor(revenue * TAX_RATES.consumptionTax * 0.3);
     }
   }
 
-  const totalTax = corporateTax + citizenTax + businessTax + transactionTax;
+  const totalTax = corporateTax + citizenTax + businessTax + consumptionTax;
 
-  // 赤字の場合、繰越欠損金を積む
   if (profit < 0) {
     state.carryForwardLoss += Math.abs(profit);
   }
 
-  // 節税効果の計算
+  // 節税効果の計算（対策なしとの比較）
   const taxWithoutSaving = (() => {
     let ti = profit;
     if (ti > 0 && usedCarryForward > 0) ti -= usedCarryForward;
     if (ti <= 0) return citizenTax;
-    let ct = ti <= TAX_RATES.corporate.threshold
-      ? Math.floor(ti * TAX_RATES.corporate.low)
-      : Math.floor(TAX_RATES.corporate.threshold * TAX_RATES.corporate.low + (ti - TAX_RATES.corporate.threshold) * TAX_RATES.corporate.high);
-    let bt = Math.floor(ti * TAX_RATES.business);
-    return ct + citizenTax + bt + transactionTax;
+    let ct = ti <= TAX_RATES.corporateTaxThreshold
+      ? Math.floor(ti * TAX_RATES.corporateTaxLow)
+      : Math.floor(TAX_RATES.corporateTaxThreshold * TAX_RATES.corporateTaxLow + (ti - TAX_RATES.corporateTaxThreshold) * TAX_RATES.corporateTaxHigh);
+    return ct + citizenTax + Math.floor(ti * TAX_RATES.businessTax) + consumptionTax;
   })();
-  const taxSaved = taxWithoutSaving - totalTax;
+  const taxSaved = Math.max(0, taxWithoutSaving - totalTax);
 
-  // 納税
   state.corporateCash -= totalTax;
   state.totalTaxPaid += totalTax;
-  state.totalTaxSaved += Math.max(0, taxSaved);
+  state.totalTaxSaved += taxSaved;
 
-  // 期の記録
-  state.periodRecords.push({
-    period: state.currentPeriod,
-    revenue: state.periodRevenue,
-    expense: state.periodExpense,
-    profit,
-    taxableIncome,
-    tax: totalTax,
-    taxSaved: Math.max(0, taxSaved),
-  });
+  state.periodRecords.push({ period: state.currentPeriod, revenue, expense, profit, tax: totalTax, taxSaved });
 
-  // 期リセット
   state.periodRevenue = 0;
   state.periodExpense = 0;
-  state.periodProfit = 0;
 
-  return {
-    revenue: state.periodRecords[state.periodRecords.length - 1].revenue,
-    expense: state.periodRecords[state.periodRecords.length - 1].expense,
-    profit,
-    taxableIncome,
-    usedCarryForward,
-    usedDeduction,
-    corporateTax,
-    citizenTax,
-    businessTax,
-    transactionTax,
-    totalTax,
-    taxSaved: Math.max(0, taxSaved),
-    carryForwardLoss: state.carryForwardLoss,
-  };
+  return { revenue, expense, profit, taxableIncome, usedCarryForward, usedDeduction, corporateTax, citizenTax, businessTax, consumptionTax, totalTax, taxSaved, carryForwardLoss: state.carryForwardLoss };
 }
 
-// カード効果の適用
 export function applyCardEffect(state, card) {
   const results = [];
 
-  // コスト支払い
+  // 特殊：税理士契約
+  if (card.special === 'accountant_basic') {
+    state.accountant = 'basic';
+    state.accountantCost = 30000;
+    state.usedUniqueCards.push(card.id);
+    results.push({ type: 'success', text: '税理士 佐藤と顧問契約を結んだ！' });
+    results.push({ type: 'permanent', text: '月次P/L・決算詳細が見えるようになった（月Ƴ3万）' });
+    return { success: true, results };
+  }
+  if (card.special === 'accountant_advanced') {
+    state.accountant = 'advanced';
+    state.accountantCost = 80000;
+    state.usedUniqueCards.push(card.id);
+    results.push({ type: 'success', text: '敏腕税理士 伊藤と契約した！' });
+    results.push({ type: 'permanent', text: 'B/S（貸借対照表）が見えるようになった（月Ƴ8万）' });
+    return { success: true, results };
+  }
+
+  // コスト
   if (card.cost > 0) {
     state.corporateCash -= card.cost;
     state.monthExpense += card.cost;
@@ -290,30 +262,19 @@ export function applyCardEffect(state, card) {
   }
 
   // 成否判定
-  const roll = Math.random();
-  const failRate = card.failRate || 0;
-
-  if (roll < failRate) {
+  if (Math.random() < (card.failRate || 0)) {
     results.push({ type: 'fail', text: card.failText || '失敗した…。' });
     return { success: false, results };
   }
 
-  // 売上効果
+  // 売上
   if (card.revenueMin !== undefined && card.revenueMax !== undefined) {
     let rev = Math.floor(Math.random() * (card.revenueMax - card.revenueMin + 1)) + card.revenueMin;
-
-    // SNS蓄積効果
     if (card.cumulative) {
       state.snsCount++;
       rev += card.cumulativeBonus * state.snsCount;
     }
-
-    // 永続効果の乗算
     rev = Math.floor(rev * state.permanentEffects.revenueMultiplier);
-
-    // 売上上限チェック
-    const cap = state.permanentEffects.revenueCap + (card.tempEffect?.revenueCap || 0);
-
     if (rev > 0) {
       state.corporateCash += rev;
       state.monthRevenue += rev;
@@ -332,27 +293,23 @@ export function applyCardEffect(state, card) {
     if (pe.monthlyExpense) state.permanentEffects.monthlyExpense += pe.monthlyExpense;
     if (pe.taxDeduction) state.permanentEffects.taxDeduction += pe.taxDeduction;
     if (pe.creditScore) state.creditScore += pe.creditScore;
-
     if (card.unique) state.usedUniqueCards.push(card.id);
-
     results.push({ type: 'permanent', text: card.permanentLabel });
   }
 
   // 従業員追加
   if (card.addsEmployee) {
-    const emp = {
+    state.employees.push({
       ...card.addsEmployee,
       salary: card.addsEmployee.baseSalary,
       hiredPeriod: state.currentPeriod,
       hiredMonth: state.currentMonth,
-    };
-    state.employees.push(emp);
+    });
   }
 
   return { success: true, results };
 }
 
-// 永続効果の月間売上ベースを加算
 export function applyPassiveRevenue(state) {
   const base = state.permanentEffects.revenueBase;
   if (base > 0) {

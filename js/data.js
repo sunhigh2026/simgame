@@ -1,7 +1,3 @@
-// ========================================
-// マスターデータ
-// ========================================
-
 export const INDUSTRIES = {
   web: {
     id: 'web',
@@ -13,11 +9,6 @@ export const INDUSTRIES = {
     baseCost: 30000,
     revenueGrowthRate: 1.08,
     difficulty: 2,
-    traits: {
-      highMargin: true,
-      inventoryBased: false,
-      locationBased: false,
-    }
   },
   cafe: {
     id: 'cafe',
@@ -29,11 +20,6 @@ export const INDUSTRIES = {
     baseCost: 250000,
     revenueGrowthRate: 1.03,
     difficulty: 4,
-    traits: {
-      highMargin: false,
-      inventoryBased: true,
-      locationBased: true,
-    }
   },
   ec: {
     id: 'ec',
@@ -45,11 +31,6 @@ export const INDUSTRIES = {
     baseCost: 150000,
     revenueGrowthRate: 1.06,
     difficulty: 3,
-    traits: {
-      highMargin: false,
-      inventoryBased: true,
-      locationBased: false,
-    }
   },
   consul: {
     id: 'consul',
@@ -61,11 +42,6 @@ export const INDUSTRIES = {
     baseCost: 20000,
     revenueGrowthRate: 1.10,
     difficulty: 3,
-    traits: {
-      highMargin: true,
-      inventoryBased: false,
-      locationBased: false,
-    }
   }
 };
 
@@ -87,11 +63,13 @@ export const COMPANY_TYPES = {
 };
 
 export const TAX_RATES = {
-  corporate: { low: 0.14, high: 0.22, threshold: 8000000 },
+  corporateTaxLow: 0.14,
+  corporateTaxHigh: 0.22,
+  corporateTaxThreshold: 8000000,
   citizenFlat: 70000,
-  business: 0.05,
-  transaction: 0.08,
-  transactionThreshold: 10000000,
+  businessTax: 0.05,
+  consumptionTax: 0.08,
+  consumptionTaxThreshold: 10000000,
   socialInsuranceRate: 0.28,
 };
 
@@ -100,3 +78,27 @@ export const FISCAL_MONTHS = [
   { value: 9, label: '9月', description: '設立月から遠い＝1期目が長くなる' },
   { value: 12, label: '12月', description: '年末で区切る。わかりやすい' },
 ];
+
+export const ACCOUNTANT_PLANS = {
+  none: {
+    id: 'none',
+    name: 'なし',
+    cost: 0,
+    description: '自分でなんとかする。通帳残高しか見えない。',
+    features: [],
+  },
+  basic: {
+    id: 'basic',
+    name: '税理士 佐藤',
+    cost: 30000,
+    description: '月Ƴ3万。月次P/Lが見える。節税アドバイスあり。',
+    features: ['monthlyPL', 'taxAdvice', 'detailedSettlement'],
+  },
+  advanced: {
+    id: 'advanced',
+    name: '敏腕税理士 伊藤',
+    cost: 80000,
+    description: '月Ƴ8万。P/L＋B/Sが見える。高度な節税提案。',
+    features: ['monthlyPL', 'taxAdvice', 'detailedSettlement', 'balanceSheet', 'advancedTax'],
+  },
+};
