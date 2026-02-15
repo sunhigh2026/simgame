@@ -130,6 +130,7 @@ function calcWinRate(project, quotePrice) {
 function processMonthEnd(state) {
   const log = [];
   let totalDeduction = 0;
+  let totalIncome = 0;
 
   // --- 売掛金の入金 ---
   const collected = [];
@@ -137,6 +138,7 @@ function processMonthEnd(state) {
   for (const recv of state.receivables) {
     if (recv.duePeriod < state.period || (recv.duePeriod === state.period && recv.dueMonth <= state.month)) {
       state.balance += recv.amount;
+      totalIncome += recv.amount;
       collected.push(recv);
       log.push({ text: `入金: ${recv.name} Ƴ${recv.amount.toLocaleString()}`, type: 'positive' });
     } else {
@@ -148,6 +150,10 @@ function processMonthEnd(state) {
   // --- 役員報酬 ---
   const salaryDeduction = state.salary;
   totalDeduction += salaryDeduction;
+  // 役員報酬から社会保険料（個人負担分）を引いた手取りを個人資産に加算
+  const personalSocialIns = Math.round(state.salary * DATA.TAX.socialInsPersonalRate);
+  const netSalary = state.salary - personalSocialIns;
+  state.personalBalance += netSalary;
   log.push({ text: `役員報酬: Ƴ${salaryDeduction.toLocaleString()}`, type: 'neutral' });
 
   // --- 社会保険料（会社負担） ---
@@ -214,7 +220,12 @@ function processMonthEnd(state) {
   // --- 残高記録 ---
   state.monthlyBalanceHistory.push({ period: state.period, month: state.month, balance: state.balance });
 
-  return log;
+  return {
+    log,
+    totalIncome,
+    totalExpense: totalDeduction,
+    netSalary: state.salary - Math.round(state.salary * DATA.TAX.socialInsPersonalRate),
+  };
 }
 
 /* ========== 制作フェーズ ========== */

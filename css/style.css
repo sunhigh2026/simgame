@@ -413,6 +413,266 @@ body {
   color: var(--text2);
 }
 
+/* 免責文 */
+.disclaimer {
+  font-size: 0.7rem;
+  color: var(--text2);
+  text-align: center;
+  line-height: 1.6;
+  padding: 16px;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+/* ========== SETTLEMENT (決算) ========== */
+.settlement-panel {
+  padding: 0;
+  overflow: hidden;
+}
+.settlement-summary {
+  padding: 16px;
+  background: var(--surface);
+}
+.settlement-header {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.settlement-visual {
+  margin-bottom: 12px;
+}
+.visual-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.visual-label {
+  font-size: 0.82rem;
+  color: var(--text2);
+  min-width: 50px;
+}
+.visual-bar-wrap {
+  flex: 1;
+  height: 18px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.visual-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.visual-bar.revenue { background: linear-gradient(90deg, var(--green), #81c784); }
+.visual-bar.expense { background: linear-gradient(90deg, var(--red), #ef5350); }
+.visual-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-width: 110px;
+  text-align: right;
+}
+.settlement-profit {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 12px 0;
+  border-top: 2px solid var(--surface2);
+  margin-top: 8px;
+}
+
+/* 税金セクション */
+.settlement-tax {
+  background: var(--bg);
+  padding: 16px;
+  border-top: 1px solid var(--surface2);
+}
+.settlement-tax.simple {
+  padding: 12px 16px;
+}
+.tax-header {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text2);
+}
+.tax-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tax-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+.tax-name {
+  color: var(--text2);
+}
+.tax-note {
+  font-size: 0.7rem;
+  color: var(--orange);
+}
+.tax-amount {
+  font-weight: 600;
+}
+.tax-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding-top: 10px;
+  border-top: 1px solid var(--surface2);
+}
+
+/* 最終利益 */
+.settlement-final {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: var(--surface);
+  border-top: 2px solid var(--surface2);
+}
+.settlement-final.positive { background: rgba(76, 175, 80, 0.1); }
+.settlement-final.negative { background: rgba(239, 83, 80, 0.1); }
+.final-amount {
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+.carryforward-note {
+  font-size: 0.75rem;
+  color: var(--text2);
+  padding: 8px 16px;
+  background: var(--bg);
+}
+.accountant-hint {
+  font-size: 0.75rem;
+  color: var(--text2);
+  padding: 8px 16px;
+  text-align: center;
+}
+
+/* B/S ビジュアル */
+.bs-visual {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.bs-side {
+  flex: 1;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.bs-side.assets {
+  border-left: 3px solid var(--accent);
+}
+.bs-side.liabilities {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bs-section {
+  padding: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+}
+.bs-section.equity.positive { border-left: 3px solid var(--green); }
+.bs-section.equity.negative { border-left: 3px solid var(--red); }
+.bs-label {
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+.bs-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ========== MONTHLY SUMMARY ========== */
+.monthly-summary {
+  margin-bottom: 16px;
+}
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.summary-row.net {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--surface2);
+}
+.summary-label {
+  font-size: 0.82rem;
+  color: var(--text2);
+  min-width: 60px;
+}
+.summary-bar-container {
+  flex: 1;
+  height: 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.summary-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+.summary-bar.income { background: var(--green); }
+.summary-bar.expense { background: var(--red); }
+.summary-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  min-width: 100px;
+  text-align: right;
+}
+
+/* ========== PL DETAIL ========== */
+.pl-detail {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 12px;
+}
+.pl-detail-title {
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+
+/* ========== BALANCE DISPLAY ========== */
+.balance-display {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 12px;
+}
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.balance-row.sub {
+  font-size: 0.85rem;
+  font-weight: 400;
+  margin-top: 6px;
+  color: var(--text2);
+}
+.balance-row .safe { color: var(--green); }
+.balance-row .negative { color: var(--red); }
+.balance-note {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 8px;
+  text-align: right;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 520px) {
   html { font-size: 14px; }

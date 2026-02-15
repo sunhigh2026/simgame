@@ -457,7 +457,8 @@ const App = {
   /* ===== 制作フェーズ ===== */
   processProductionPhase() {
     const prodLog = processProduction(this.state);
-    const monthEndLog = processMonthEnd(this.state);
+    const monthEndResult = processMonthEnd(this.state);
+    const monthEndLog = monthEndResult.log;
 
     // 従業員退職チェック
     const quitters = [];
@@ -495,30 +496,80 @@ const App = {
       `;
     }
 
-    // 月末処理
+    // 月末処理 - P/Lビジュアル
     const hasAccountant = this.state.accountant !== 'none';
+    const { totalIncome, totalExpense, netSalary } = monthEndResult;
+    const maxBar = Math.max(totalIncome, totalExpense, 1);
+    const incomePct = (totalIncome / maxBar) * 100;
+    const expensePct = (totalExpense / maxBar) * 100;
+
+    // 収支サマリーバー（常に表示）
+    const summaryBar = `
+      <div class="monthly-summary">
+        <div class="summary-row">
+          <span class="summary-label">📥 入金</span>
+          <div class="summary-bar-container">
+            <div class="summary-bar income" style="width:${incomePct}%"></div>
+          </div>
+          <span class="summary-value positive">Ƴ${totalIncome.toLocaleString()}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">📤 支出</span>
+          <div class="summary-bar-container">
+            <div class="summary-bar expense" style="width:${expensePct}%"></div>
+          </div>
+          <span class="summary-value negative">Ƴ${totalExpense.toLocaleString()}</span>
+        </div>
+        <div class="summary-row net">
+          <span class="summary-label">💵 収支</span>
+          <span class="summary-value ${totalIncome - totalExpense >= 0 ? 'positive' : 'negative'}">
+            ${totalIncome - totalExpense >= 0 ? '+' : ''}Ƴ${(totalIncome - totalExpense).toLocaleString()}
+          </span>
+        </div>
+      </div>
+    `;
+
     let monthEndHtml;
     if (hasAccountant) {
-      monthEndHtml = monthEndLog.map(item => {
-        const parts = item.text.split(':');
-        const label = parts[0];
-        const value = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
-        return `<div class="pl-row"><span>${label}</span><span class="${item.type === 'positive' ? 'positive' : item.type === 'negative' || item.type === 'danger' ? 'negative' : ''}">${value}</span></div>`;
-      }).join('');
-    } else {
-      const totalLine = monthEndLog.find(l => l.text.includes('合計支出'));
-      const balanceLine = monthEndLog.find(l => l.text.includes('残高'));
-      const incomeLines = monthEndLog.filter(l => l.type === 'positive');
+      // 税理士あり：詳細表示
+      const detailRows = monthEndLog
+        .filter(item => !item.text.includes('───') && !item.text.includes('合計支出') && !item.text.includes('残高'))
+        .map(item => {
+          const parts = item.text.split(':');
+          const label = parts[0];
+          const value = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+          return `<div class="pl-row"><span>${label}</span><span class="${item.type === 'positive' ? 'positive' : ''}">${value}</span></div>`;
+        }).join('');
+
       monthEndHtml = `
-        ${incomeLines.map(l => {
-          const parts = l.text.split(':');
-          return `<div class="pl-row"><span>${parts[0]}</span><span class="positive">${parts[1] || ''}</span></div>`;
-        }).join('')}
-        ${totalLine ? `<div class="pl-row total"><span>合計支出</span><span class="negative">${totalLine.text.split(':')[1] || ''}</span></div>` : ''}
-        ${balanceLine ? `<div class="pl-row total"><span>残高</span><span class="${this.state.balance < 0 ? 'negative' : ''}">${balanceLine.text.split(':')[1] || ''}</span></div>` : ''}
+        ${summaryBar}
+        <div class="pl-detail">
+          <div class="pl-detail-title">内訳</div>
+          ${detailRows}
+        </div>
+      `;
+    } else {
+      // 税理士なし：サマリーのみ
+      monthEndHtml = `
+        ${summaryBar}
         <div style="font-size:0.78rem;color:var(--text2);margin-top:8px;">※ 税理士と契約すると内訳が見えます</div>
       `;
     }
+
+    // 残高表示
+    monthEndHtml += `
+      <div class="balance-display">
+        <div class="balance-row">
+          <span>🏢 法人残高</span>
+          <span class="${this.state.balance < 0 ? 'negative' : 'safe'}">Ƴ${this.state.balance.toLocaleString()}</span>
+        </div>
+        <div class="balance-row sub">
+          <span>👤 個人資産</span>
+          <span>Ƴ${this.state.personalBalance.toLocaleString()}</span>
+        </div>
+        ${netSalary > 0 ? `<div class="balance-note">今月の手取り: +Ƴ${netSalary.toLocaleString()}</div>` : ''}
+      </div>
+    `;
 
     combinedHtml += `
       <div class="panel">

@@ -34,14 +34,14 @@ const UI = {
     bar.innerHTML = `
       <div class="status-period">${state.period}期目 ${state.month}月 ／ ナホン・トーキョ区</div>
       <div class="status-grid">
-        <span class="label">💰 残高</span>
+        <span class="label">🏢 法人</span>
         <span class="value ${state.balance < 200000 ? 'danger' : 'safe'}">${UI.money(state.balance)}</span>
+        <span class="label">👤 個人</span>
+        <span class="value">${UI.money(state.personalBalance)}</span>
         <span class="label">❤️ 体力</span>
         <span class="value"><div class="hp-bar-mini">${hpBlocks}</div></span>
         <span class="label">⭐ 信用</span>
         <span class="value">${state.credit}</span>
-        <span class="label">📋 案件</span>
-        <span class="value">${state.projects.filter(p => p.status === 'active' || p.status === 'waiting').length}件</span>
       </div>
     `;
   },
@@ -66,6 +66,11 @@ const UI = {
           あなたの5年間が、今始まる。
         </div>
         <button class="btn btn-block" onclick="App.startSetup()">起業する</button>
+      </div>
+      <div class="disclaimer">
+        本作は架空の国「ナホン」を舞台にしたフィクションの経営シミュレーションゲームです。
+        登場する制度・税率・法律はすべて架空のものであり、実在する国の税制とは異なります。
+        実際の起業・税務判断については専門家にご相談ください。
       </div>
     `;
   },
@@ -415,36 +420,99 @@ const UI = {
     const maxBar = Math.max(result.revenue, result.expense, 1);
     const revPct = (result.revenue / maxBar) * 100;
     const expPct = (result.expense / maxBar) * 100;
+    const afterTax = result.profit - result.totalTax;
+
+    // P/L サマリー（常に表示）
+    const plSummary = `
+      <div class="settlement-summary">
+        <div class="settlement-header">📊 第${state.period}期 損益計算書（P/L）</div>
+        <div class="settlement-visual">
+          <div class="visual-row">
+            <div class="visual-label">売上高</div>
+            <div class="visual-bar-wrap">
+              <div class="visual-bar revenue" style="width:${revPct}%"></div>
+            </div>
+            <div class="visual-value positive">${UI.money(result.revenue)}</div>
+          </div>
+          <div class="visual-row">
+            <div class="visual-label">経費</div>
+            <div class="visual-bar-wrap">
+              <div class="visual-bar expense" style="width:${expPct}%"></div>
+            </div>
+            <div class="visual-value negative">${UI.money(-result.expense)}</div>
+          </div>
+        </div>
+        <div class="settlement-profit ${result.profit >= 0 ? 'positive' : 'negative'}">
+          <span>営業利益</span>
+          <span>${UI.money(result.profit)}</span>
+        </div>
+      </div>
+    `;
+
+    // 税金パネル
+    let taxHtml = `
+      <div class="settlement-tax">
+        <div class="tax-header">🏛️ 税金</div>
+        <div class="tax-grid">
+          <div class="tax-item">
+            <span class="tax-name">法人税</span>
+            <span class="tax-amount">${UI.money(result.corpTax)}</span>
+          </div>
+          <div class="tax-item">
+            <span class="tax-name">均等割 <span class="tax-note">※赤字でも発生</span></span>
+            <span class="tax-amount">${UI.money(result.equalTax)}</span>
+          </div>
+          <div class="tax-item">
+            <span class="tax-name">事業税</span>
+            <span class="tax-amount">${UI.money(result.bizTax)}</span>
+          </div>
+          ${result.consumptionTax > 0 ? `
+            <div class="tax-item">
+              <span class="tax-name">消費税</span>
+              <span class="tax-amount">${UI.money(result.consumptionTax)}</span>
+            </div>
+          ` : ''}
+        </div>
+        <div class="tax-total">
+          <span>税金合計</span>
+          <span class="negative">${UI.money(-result.totalTax)}</span>
+        </div>
+      </div>
+    `;
+
+    // 最終利益
+    const finalHtml = `
+      <div class="settlement-final ${afterTax >= 0 ? 'positive' : 'negative'}">
+        <span>税引後利益</span>
+        <span class="final-amount">${UI.money(afterTax)}</span>
+      </div>
+      ${result.lossCarryforward > 0 ? `
+        <div class="carryforward-note">繰越欠損金: Ƴ${result.lossCarryforward.toLocaleString()}（来期以降に利用可能）</div>
+      ` : ''}
+    `;
 
     let plHtml = '';
     if (hasAccountant) {
       plHtml = `
-        <div class="panel">
-          <div class="panel-title">📊 損益計算書（P/L）</div>
-          <div class="pl-row"><span>売上高</span><span class="positive">${UI.money(result.revenue)}</span></div>
-          <div class="pl-bar revenue" style="width:${revPct}%"></div>
-          <div class="pl-row"><span>経費合計</span><span class="negative">${UI.money(-result.expense)}</span></div>
-          <div class="pl-bar expense" style="width:${expPct}%"></div>
-          <div class="pl-row total"><span>営業利益</span><span class="${result.profit >= 0 ? 'positive' : 'negative'}">${UI.money(result.profit)}</span></div>
-          ${result.lossCarryforward > 0 ? `<div style="font-size:0.78rem;color:var(--text2);">繰越欠損金: Ƴ${result.lossCarryforward.toLocaleString()}</div>` : ''}
-        </div>
-        <div class="panel">
-          <div class="panel-title">🏛️ 税金</div>
-          <div class="pl-row"><span>法人税</span><span>${UI.money(result.corpTax)}</span></div>
-          <div class="pl-row"><span>均等割</span><span>${UI.money(result.equalTax)}</span></div>
-          <div style="font-size:0.75rem;color:var(--text2);padding-left:12px;">← 赤字でもかかります</div>
-          <div class="pl-row"><span>事業税</span><span>${UI.money(result.bizTax)}</span></div>
-          ${result.consumptionTax > 0 ? `<div class="pl-row"><span>消費税</span><span>${UI.money(result.consumptionTax)}</span></div>` : ''}
-          <div class="pl-row total"><span>税金合計</span><span class="negative">${UI.money(-result.totalTax)}</span></div>
+        <div class="panel settlement-panel">
+          ${plSummary}
+          ${taxHtml}
+          ${finalHtml}
         </div>
       `;
     } else {
+      // 税理士なし：サマリーと税金合計のみ
       plHtml = `
-        <div class="panel">
-          <div class="panel-title">📊 第${state.period}期 決算</div>
-          <div class="pl-row total"><span>売上高</span><span>${UI.money(result.revenue)}</span></div>
-          <div class="pl-row total"><span>税金合計</span><span class="negative">${UI.money(-result.totalTax)}</span></div>
-          <div style="font-size:0.78rem;color:var(--text2);margin-top:8px;">※ 税理士と契約すると詳細が見えます</div>
+        <div class="panel settlement-panel">
+          ${plSummary}
+          <div class="settlement-tax simple">
+            <div class="tax-total">
+              <span>税金合計</span>
+              <span class="negative">${UI.money(-result.totalTax)}</span>
+            </div>
+          </div>
+          ${finalHtml}
+          <div class="accountant-hint">※ 税理士と契約すると税金の内訳が見えます</div>
         </div>
       `;
     }
@@ -458,9 +526,22 @@ const UI = {
       bsHtml = `
         <div class="panel">
           <div class="panel-title">📋 貸借対照表（B/S）</div>
-          <div class="pl-row"><span>資産合計</span><span>${UI.money(assets)}</span></div>
-          <div class="pl-row"><span>負債合計</span><span>${UI.money(liabilities)}</span></div>
-          <div class="pl-row total"><span>純資産</span><span class="${equity >= 0 ? 'positive' : 'negative'}">${UI.money(equity)}</span></div>
+          <div class="bs-visual">
+            <div class="bs-side assets">
+              <div class="bs-label">資産</div>
+              <div class="bs-value">${UI.money(assets)}</div>
+            </div>
+            <div class="bs-side liabilities">
+              <div class="bs-section">
+                <div class="bs-label">負債</div>
+                <div class="bs-value">${UI.money(liabilities)}</div>
+              </div>
+              <div class="bs-section equity ${equity >= 0 ? 'positive' : 'negative'}">
+                <div class="bs-label">純資産</div>
+                <div class="bs-value">${UI.money(equity)}</div>
+              </div>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -483,9 +564,6 @@ const UI = {
     }
 
     return `
-      <div class="panel">
-        <div class="panel-title">📘 第${state.period}期 決算</div>
-      </div>
       ${plHtml}
       ${bsHtml}
       ${adviceHtml}
@@ -533,12 +611,10 @@ const UI = {
 
   /* ========== 採用選択 ========== */
   renderHireSelect(state) {
-    // 未雇用のテンプレートからランダムに2人候補を出す
-    const hired = state.employees.map(e => e.name);
-    const available = DATA.EMPLOYEE_TEMPLATES.filter(t => !hired.includes(t.name));
-    const candidates = available.sort(() => Math.random() - 0.5).slice(0, 2);
+    // App.hireCandidatesを使用（main.jsで設定済み）
+    const candidates = App.hireCandidates;
 
-    if (candidates.length === 0) {
+    if (!candidates || candidates.length === 0) {
       return `
         <div class="panel">
           <div class="panel-title">👤 採用</div>
