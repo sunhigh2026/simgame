@@ -119,33 +119,40 @@ const UI = {
   },
 
   renderCapitalSelect() {
+    // 設立費用を取得（setupDataから）
+    const compType = DATA.COMPANY_TYPES.find(c => c.id === App.setupData.companyType);
+    const industry = DATA.INDUSTRIES[App.setupData.industry];
+    const setupCost = (compType ? compType.cost : 0) + (industry ? industry.initialCost : 0);
+    const available = DATA.INITIAL_SAVINGS - setupCost;
+
     return `
       <div class="panel">
         <div class="panel-title">💰 資本金を設定</div>
         <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">
-          貯金Ƴ500万のうち、いくらを資本金にする？<br>
-          残りは個人の生活費になる。
+          貯金Ƴ500万から設立費用Ƴ${setupCost.toLocaleString()}を引いた残りƳ${available.toLocaleString()}を、<br>
+          会社の資本金と個人の生活費に分ける。
         </p>
         <div class="slider-section">
           <div class="slider-label">
-            <span>資本金</span>
+            <span>資本金（会社の初期資金）</span>
             <span id="capital-value">Ƴ1,000,000</span>
           </div>
-          <input type="range" min="100000" max="4000000" step="100000" value="1000000"
-            oninput="document.getElementById('capital-value').textContent='Ƴ'+Number(this.value).toLocaleString()">
+          <input type="range" min="100000" max="${Math.min(available, 4000000)}" step="100000" value="1000000"
+            oninput="UI.updateCapitalUI(this.value, ${available})">
           <div class="slider-hint">
-            個人の残り: <span id="capital-personal">Ƴ4,000,000</span>
+            個人の生活費: <span id="capital-personal">Ƴ${(available - 1000000).toLocaleString()}</span>
           </div>
         </div>
-        <script>
-          document.querySelector('.slider-section input').addEventListener('input', function() {
-            const remain = 5000000 - Number(this.value);
-            document.getElementById('capital-personal').textContent = 'Ƴ' + remain.toLocaleString();
-          });
-        </script>
         <button class="btn btn-block" style="margin-top:12px" onclick="App.setCapital(Number(document.querySelector('.slider-section input').value))">決定</button>
       </div>
     `;
+  },
+
+  updateCapitalUI(val, available) {
+    const v = Number(val);
+    document.getElementById('capital-value').textContent = 'Ƴ' + v.toLocaleString();
+    const remain = available - v;
+    document.getElementById('capital-personal').textContent = 'Ƴ' + remain.toLocaleString();
   },
 
   renderSalarySelect() {
@@ -183,13 +190,31 @@ const UI = {
 
   /* ========== 月初画面 ========== */
   renderMonthStart(state) {
-    // 案件ボード
+    // 制作キャパ計算
+    const capacity = getProductionCapacity(state);
     const activeProjects = state.projects.filter(p => p.status === 'active');
     const waitingProjects = state.projects.filter(p => p.status === 'waiting');
+    const usedCapacity = Math.min(activeProjects.length, capacity);
+    const capacityPct = (usedCapacity / Math.max(capacity, 1)) * 100;
+    const isBusy = usedCapacity >= capacity * 0.8;
+
+    // 案件ボード
     const projectsHtml = (activeProjects.length + waitingProjects.length) > 0
       ? `
         <div class="panel">
           <div class="panel-title">📋 案件ボード</div>
+          <div class="capacity-bar-section">
+            <div class="capacity-header">
+              <span>⏱️ 今月の稼働状況</span>
+              <span class="${isBusy ? 'busy' : ''}">${usedCapacity.toFixed(1)} / ${capacity.toFixed(1)} 案件分</span>
+            </div>
+            <div class="capacity-bar">
+              <div class="capacity-fill ${isBusy ? 'busy' : ''}" style="width:${capacityPct}%"></div>
+            </div>
+            <div class="capacity-hint">
+              ${isBusy ? '⚠️ 制作で手一杯。営業に回せる時間が少ない' : '営業や投資に使える時間がある'}
+            </div>
+          </div>
           ${activeProjects.map(p => {
             const progress = ((p.monthsTotal - p.monthsLeft) / p.monthsTotal) * 100;
             return `
@@ -206,9 +231,6 @@ const UI = {
               <div class="project-detail">報酬: Ƴ${p.price.toLocaleString()} ／ 待ち（${p.monthsTotal}ヶ月）</div>
             </div>
           `).join('')}
-          <div style="font-size:0.78rem;color:var(--text2);margin-top:6px;">
-            制作キャパ: ${getProductionCapacity(state).toFixed(1)} 案件分/月
-          </div>
         </div>
       `
       : '';
@@ -364,12 +386,23 @@ const UI = {
 
   /* ========== コスト選択 ========== */
   renderCostSelect(state, card) {
-    const optionsHtml = card.costOptions.map((opt, i) => `
+    const optionsHtml = card.costOptions.map((opt, i) => {
+      // コスト表示を生成
+      let costLabel = '';
+      if (opt.cost > 0) {
+        costLabel = ` （Ƴ${opt.cost.toLocaleString()}）`;
+      } else if (opt.effect && opt.effect.monthlyExpense) {
+        costLabel = ` （月額Ƴ${opt.effect.monthlyExpense.toLocaleString()}）`;
+      } else {
+        costLabel = ' （無料）';
+      }
+      return `
       <div class="cost-option" onclick="App.selectCostOption(${i})">
-        <div class="cost-label">${opt.label}${opt.cost > 0 ? ` （Ƴ${opt.cost.toLocaleString()}）` : ' （無料）'}</div>
+        <div class="cost-label">${opt.label}${costLabel}</div>
         <div class="cost-detail">${opt.desc}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     return `
       <div class="panel">
@@ -740,23 +773,57 @@ const UI = {
 
   /* ========== エンディング ========== */
   renderEnding(state, ending) {
+    // ランク別の背景色
+    const rankColors = {
+      'EXIT': 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+      'S': 'linear-gradient(135deg, #FFD700 0%, #FFC107 100%)',
+      'A': 'linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%)',
+      'B': 'linear-gradient(135deg, #CD7F32 0%, #B8860B 100%)',
+      'C': 'linear-gradient(135deg, #4A90D9 0%, #357ABD 100%)',
+      'D': 'linear-gradient(135deg, #888888 0%, #666666 100%)',
+      'E': 'linear-gradient(135deg, #CC4444 0%, #AA3333 100%)',
+    };
+
+    const rankBg = rankColors[ending.rank] || rankColors['E'];
+    const displayRank = ending.rank === 'EXIT' ? '👑' : ending.rank;
+
     return `
       <div class="panel ending-card">
-        <div style="font-size:0.85rem;color:var(--text2);">5年間の経営が終了しました</div>
-        <div class="ending-rank ${ending.rank}">${ending.rank}ランク</div>
-        <div style="font-size:1.1rem;font-weight:700;margin-bottom:20px;">${ending.title}</div>
+        <div style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">5年間の経営が終了しました</div>
+
+        <div class="ending-rank-badge" style="background:${rankBg}">
+          <span class="rank-letter">${displayRank}</span>
+          <span class="rank-label">${ending.rank === 'EXIT' ? 'EXIT' : 'ランク'}</span>
+        </div>
+
+        <div style="font-size:1.2rem;font-weight:700;margin:16px 0 12px;color:${ending.color};">${ending.title}</div>
+
+        <div class="ending-message">
+          ${ending.message.split('\n').map(line => `<p>${line}</p>`).join('')}
+        </div>
 
         <div class="ending-stats">
+          <div class="stats-title">📊 5年間の成績</div>
           <div class="pl-row"><span>累計売上</span><span>${UI.money(state.totalRevenue)}</span></div>
-          <div class="pl-row"><span>累計納税</span><span>${UI.money(state.totalTaxPaid)}</span></div>
-          <div class="pl-row"><span>最終残高</span><span class="${state.balance >= 0 ? 'positive' : 'negative'}">${UI.money(state.balance)}</span></div>
+          <div class="pl-row"><span>最終会社残高</span><span class="${state.balance >= 0 ? 'positive' : 'negative'}">${UI.money(state.balance)}</span></div>
+          <div class="pl-row"><span>最終個人資産</span><span class="${state.personalBalance >= 0 ? 'positive' : 'negative'}">${UI.money(state.personalBalance)}</span></div>
+          <div class="pl-row"><span>累計納税額</span><span>${UI.money(state.totalTaxPaid)}</span></div>
           <div class="pl-row"><span>従業員数</span><span>${state.employees.length}人</span></div>
           <div class="pl-row"><span>信用スコア</span><span>${state.credit}</span></div>
-          <div class="pl-row total"><span>総合スコア</span><span>${Math.round(ending.score)}</span></div>
+        </div>
+
+        <div class="ending-score-breakdown">
+          <div class="stats-title">🏆 スコア内訳</div>
+          <div class="score-row"><span>売上ポイント</span><span>+${ending.breakdown.revenue}</span></div>
+          <div class="score-row"><span>残高ポイント</span><span>+${ending.breakdown.balance}</span></div>
+          <div class="score-row"><span>信用ポイント</span><span>+${ending.breakdown.credit}</span></div>
+          <div class="score-row"><span>従業員ポイント</span><span>+${ending.breakdown.employees}</span></div>
+          <div class="score-row"><span>個人資産ポイント</span><span>+${ending.breakdown.personal}</span></div>
+          <div class="score-row total"><span>総合スコア</span><span>${ending.score}</span></div>
         </div>
 
         <button class="btn btn-block" style="margin-top:16px" onclick="App.restart()">もう一度起業する</button>
-        <button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="App.shareResult('${ending.rank}', '${ending.title}', ${Math.round(ending.score)})">結果をシェア</button>
+        <button class="btn btn-block btn-secondary" style="margin-top:8px" onclick="App.shareResult('${ending.rank}', '${ending.title.replace(/'/g, "\\'")}', ${ending.score})">結果をシェア 📤</button>
       </div>
     `;
   },

@@ -1,0 +1,17 @@
+{
+  "name": "起業しろ！〜ナホン成り上がり経営記〜",
+  "short_name": "起業しろ！",
+  "description": "架空の国「ナホン」で5年間、会社を経営するシミュレーションゲーム",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1923",
+  "theme_color": "#4fc3f7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230f1923'/><text y='150' x='20' font-size='150'>🏢</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

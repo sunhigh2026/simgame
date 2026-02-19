@@ -172,7 +172,11 @@ function processMonthEnd(state) {
   const personalSocialIns = Math.round(state.salary * DATA.TAX.socialInsPersonalRate);
   const netSalary = state.salary - personalSocialIns;
   state.personalBalance += netSalary;
-  log.push({ text: `役員報酬: Ƴ${salaryDeduction.toLocaleString()}`, type: 'neutral' });
+
+  // --- 個人の生活費 ---
+  const livingExpense = 150000;  // 月15万円の生活費
+  state.personalBalance -= livingExpense;
+  log.push({ text: `役員報酬: Ƴ${salaryDeduction.toLocaleString()}（手取りƳ${netSalary.toLocaleString()}）`, type: 'neutral' });
 
   // --- 社会保険料（会社負担） ---
   const totalSalaries = state.salary + state.employees.reduce((sum, e) => sum + e.salary, 0);
@@ -243,11 +247,16 @@ function processMonthEnd(state) {
   // --- 残高記録 ---
   state.monthlyBalanceHistory.push({ period: state.period, month: state.month, balance: state.balance });
 
+  const livingExpenseValue = 150000;
+  const personalChange = netSalary - livingExpenseValue;
+
   return {
     log,
     totalIncome,
     totalExpense: totalDeduction,
-    netSalary: state.salary - Math.round(state.salary * DATA.TAX.socialInsPersonalRate),
+    netSalary,
+    livingExpense: livingExpenseValue,
+    personalChange,
   };
 }
 
@@ -437,17 +446,116 @@ function calcLoanApproval(state, loanType, amount) {
 
 /* ========== エンディング判定 ========== */
 function calcEnding(state) {
-  const score =
-    (state.totalRevenue / 1000000) * 10 +
-    (state.balance / 1000000) * 20 +
-    (state.credit) * 2 +
-    (state.employees.length) * 15 -
-    (state.totalTaxPaid / 1000000) * 5;
+  // スコア計算（各要素の重み付け）
+  const revenueScore = (state.totalRevenue / 1000000) * 10;      // 売上1M = 10点
+  const balanceScore = (state.balance / 1000000) * 20;           // 残高1M = 20点
+  const creditScore = (state.credit) * 1.5;                       // 信用1 = 1.5点
+  const employeeScore = (state.employees.length) * 15;           // 従業員1人 = 15点
+  const personalScore = (state.personalBalance / 1000000) * 5;   // 個人資産1M = 5点
 
-  if (state.exitOption && score > 150) return { rank: 'S', title: 'EXIT成功！伝説の起業家', score };
-  if (score > 120) return { rank: 'A', title: '優良企業の社長', score };
-  if (score > 80) return { rank: 'B', title: '安定経営者', score };
-  if (score > 50) return { rank: 'C', title: 'なんとか生き残った', score };
-  if (score > 20) return { rank: 'D', title: 'ギリギリ経営者', score };
-  return { rank: 'E', title: '倒産寸前…', score };
+  const score = revenueScore + balanceScore + creditScore + employeeScore + personalScore;
+
+  // ランク判定（隠しEXITエンディング優先）
+  let rank, title, message, color;
+
+  // 隠しエンディング: EXIT成功
+  if (state.exitOption && state.totalRevenue > 30000000 && state.balance > 5000000) {
+    rank = 'EXIT';
+    title = '🎊 EXIT成功！伝説の起業家 🎊';
+    message = `5年間で築き上げた会社を、大手企業に売却することに成功！
+売却額は残高の3倍。個人資産は一気に跳ね上がった。
+
+「いつかまた、新しい挑戦をしよう」
+
+あなたはナホンで最も成功した起業家の一人として、その名を刻んだ。`;
+    color = '#FFD700';
+  }
+  // Sランク: 超優良企業
+  else if (score >= 200 || (state.totalRevenue > 50000000 && state.balance > 10000000)) {
+    rank = 'S';
+    title = '🏆 業界のトッププレイヤー';
+    message = `5年間の努力が実り、あなたの会社は業界でも指折りの存在に。
+大手からの提携話も絶えない。
+
+「まだまだ、これからだ」
+
+次の5年間では、さらなる高みを目指す。その瞳には野心の炎が燃えている。`;
+    color = '#FFD700';
+  }
+  // Aランク: 優良企業
+  else if (score >= 150 || (state.totalRevenue > 30000000 && state.balance > 5000000)) {
+    rank = 'A';
+    title = '🌟 優良企業の社長';
+    message = `堅実な経営で、着実に会社を成長させた5年間。
+従業員にも取引先にも信頼される、優良企業に育て上げた。
+
+「社長、次はどこを目指しますか？」
+
+従業員の期待に満ちた目が、あなたを見つめている。`;
+    color = '#C0C0C0';
+  }
+  // Bランク: 安定経営
+  else if (score >= 100 || (state.totalRevenue > 15000000 && state.balance > 1000000)) {
+    rank = 'B';
+    title = '✨ 安定経営者';
+    message = `派手さはないが、地道な努力で会社を軌道に乗せた。
+黒字を維持し、借金も返済できている。立派な経営者だ。
+
+「継続は力なり、か」
+
+これからも一歩一歩、着実に前進していこう。`;
+    color = '#CD7F32';
+  }
+  // Cランク: なんとか生き残り
+  else if (score >= 60 || state.balance > 0) {
+    rank = 'C';
+    title = '💪 なんとか生き残った';
+    message = `山あり谷ありの5年間。何度も心が折れそうになった。
+でも、会社は潰れなかった。それだけで十分だ。
+
+「まだ終わりじゃない」
+
+苦しい時期を乗り越えた経験は、きっと次に活きる。`;
+    color = '#4A90D9';
+  }
+  // Dランク: ギリギリ経営
+  else if (score >= 30) {
+    rank = 'D';
+    title = '😰 ギリギリ経営者';
+    message = `正直、綱渡りの連続だった。
+資金繰りに追われ、眠れない夜も多かった。
+
+「でも、まだ諦めない」
+
+失敗から学んだことは数知れない。次はきっとうまくいく。`;
+    color = '#888888';
+  }
+  // Eランク: 倒産寸前
+  else {
+    rank = 'E';
+    title = '😢 倒産寸前…';
+    message = `厳しい5年間だった。
+売上は伸びず、資金は底をつきかけている。
+
+「起業って、こんなに大変だったのか…」
+
+でも、挑戦したことに後悔はない。この経験を活かして、もう一度。`;
+    color = '#CC4444';
+  }
+
+  // 詳細スコア内訳も返す
+  return {
+    rank,
+    title,
+    message,
+    color,
+    score: Math.round(score),
+    breakdown: {
+      revenue: Math.round(revenueScore),
+      balance: Math.round(balanceScore),
+      credit: Math.round(creditScore),
+      employees: Math.round(employeeScore),
+      personal: Math.round(personalScore),
+    }
+  };
 }

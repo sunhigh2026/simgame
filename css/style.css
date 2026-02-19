@@ -425,21 +425,95 @@ body {
   text-align: center;
   padding: 30px 20px;
 }
-.ending-rank {
-  font-size: 3rem;
-  font-weight: 900;
-  margin: 16px 0;
+
+.ending-rank-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin: 16px auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
-.ending-rank.S { color: #ffd700; }
-.ending-rank.A { color: var(--accent); }
-.ending-rank.B { color: var(--green); }
-.ending-rank.C { color: var(--orange); }
-.ending-rank.D { color: var(--red); }
-.ending-rank.E { color: var(--text2); }
+.ending-rank-badge .rank-letter {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  line-height: 1;
+}
+.ending-rank-badge .rank-label {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.9);
+  margin-top: 2px;
+}
+
+.ending-message {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 16px 0;
+  text-align: left;
+  line-height: 1.8;
+}
+.ending-message p {
+  margin-bottom: 8px;
+}
+.ending-message p:last-child {
+  margin-bottom: 0;
+}
 
 .ending-stats {
   text-align: left;
   margin: 16px 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.ending-stats .stats-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--surface2);
+  color: var(--accent);
+}
+
+.ending-score-breakdown {
+  text-align: left;
+  margin: 16px 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.ending-score-breakdown .stats-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--surface2);
+  color: var(--yellow);
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 4px 0;
+  color: var(--text2);
+}
+.score-row span:last-child {
+  color: var(--green);
+}
+.score-row.total {
+  border-top: 1px solid var(--surface2);
+  margin-top: 8px;
+  padding-top: 8px;
+  font-weight: 700;
+  color: var(--text);
+}
+.score-row.total span:last-child {
+  color: var(--yellow);
+  font-size: 1.1rem;
 }
 
 /* ========== INTRO ========== */
@@ -798,9 +872,56 @@ body {
 .result-log > div:nth-child(4) { animation-delay: 0.4s; }
 
 /* エンディングアニメーション */
-.ending-card .ending-rank {
+.ending-rank-badge {
   animation: fadeInUp 0.5s ease-out backwards, pulse 0.6s ease-out 0.6s;
   animation-delay: 0.2s;
+}
+.ending-message {
+  animation: fadeInUp 0.4s ease-out backwards;
+  animation-delay: 0.5s;
+}
+.ending-stats {
+  animation: fadeInUp 0.4s ease-out backwards;
+  animation-delay: 0.7s;
+}
+.ending-score-breakdown {
+  animation: fadeInUp 0.4s ease-out backwards;
+  animation-delay: 0.9s;
+}
+
+/* ========== CAPACITY BAR ========== */
+.capacity-bar-section {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.capacity-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
+}
+.capacity-header span:first-child { color: var(--text2); }
+.capacity-header span:last-child { font-weight: 600; }
+.capacity-header span.busy { color: var(--orange); }
+.capacity-bar {
+  height: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.capacity-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.capacity-fill.busy { background: var(--orange); }
+.capacity-hint {
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-top: 6px;
 }
 
 /* ========== LOAN SELECTION ========== */

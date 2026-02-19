@@ -111,40 +111,87 @@ const App = {
     let resultText = '';
 
     // 成功判定が必要な場合
+    let succeeded = true;
     if (eff.successChance !== undefined) {
-      if (Math.random() < eff.successChance) {
-        resultText = typeof choice.successText === 'function'
-          ? choice.successText(this.state) : choice.successText;
-        if (eff.creditBonus) this.state.credit += eff.creditBonus;
-        if (eff.cashInflow) this.state.balance += eff.cashInflow;
-        if (eff.bigProject) {
-          this.state.projects.push({
-            name: 'トーキョ大手企業 - サイトリニューアル',
-            client: 'トーキョ大手企業', icon: '🏢',
-            price: 2000000, monthsTotal: 3, monthsLeft: 3,
-            status: 'active', recurring: false,
-          });
-        }
-      } else {
-        resultText = typeof choice.failText === 'function'
-          ? choice.failText(this.state) : (choice.failText || '失敗…');
-        if (eff.creditEffect) this.state.credit += eff.creditEffect;
-        // 失敗時でも信用+3（大型案件落選時など）
-        if (eff.bigProject) this.state.credit += 3;
-      }
-    } else {
-      resultText = typeof choice.successText === 'function'
-        ? choice.successText(this.state) : choice.successText;
-      if (eff.creditBonus) this.state.credit += eff.creditBonus;
-      if (eff.cashInflow) this.state.balance += eff.cashInflow;
-      if (eff.exitOption) this.state.exitOption = true;
+      succeeded = Math.random() < eff.successChance;
     }
 
+    if (succeeded) {
+      resultText = typeof choice.successText === 'function'
+        ? choice.successText(this.state) : choice.successText;
+
+      // 成功時エフェクト
+      if (eff.creditBonus) this.state.credit += eff.creditBonus;
+      if (eff.cashInflow) {
+        this.state.balance += eff.cashInflow;
+        this.state.periodRevenue += eff.cashInflow;
+        this.state.totalRevenue += eff.cashInflow;
+      }
+      if (eff.exitOption) this.state.exitOption = true;
+
+      if (eff.bigProject) {
+        this.state.projects.push({
+          name: 'トーキョ大手企業 - サイトリニューアル',
+          client: 'トーキョ大手企業', icon: '🏢',
+          price: 2000000, monthsTotal: 3, monthsLeft: 3,
+          status: 'active', recurring: false,
+        });
+      }
+
+      // 大型チャンス成功（ev_big_opportunity）
+      if (eff.bigSuccessBonus) {
+        this.state.credit += 10;
+        this.state.balance += 5000000;
+        this.state.periodRevenue += 5000000;
+        this.state.totalRevenue += 5000000;
+      }
+
+      // 年間契約（月20万保守）
+      if (eff.annualContract) {
+        this.state.projects.push({
+          name: '大口クライアント - 年間保守契約',
+          client: '大口クライアント', icon: '📝',
+          price: 200000, monthsTotal: 1, monthsLeft: 1,
+          status: 'active', recurring: true,
+        });
+      }
+      if (eff.annualContractPremium) {
+        this.state.projects.push({
+          name: '大口クライアント - 年間保守契約（プレミアム）',
+          client: '大口クライアント', icon: '📝',
+          price: 250000, monthsTotal: 1, monthsLeft: 1,
+          status: 'active', recurring: true,
+        });
+      }
+
+      // リピート/紹介案件追加
+      if (eff.projectDirect) {
+        const proj = generateProject(this.state, eff.tier || 0);
+        proj.price = proj.basePrice;
+        proj.status = 'waiting';
+        this.state.projects.push(proj);
+        resultText += `\n案件追加: ${proj.name}（Ƴ${proj.price.toLocaleString()}）`;
+      }
+
+    } else {
+      resultText = typeof choice.failText === 'function'
+        ? choice.failText(this.state) : (choice.failText || '失敗…');
+      if (eff.creditEffect) this.state.credit += eff.creditEffect;
+      // 失敗時でも信用+3（大型案件落選時など）
+      if (eff.bigProject) this.state.credit += 3;
+      // 大型チャンス失敗時でも信用+2
+      if (eff.bigSuccessBonus) this.state.credit += 2;
+    }
+
+    // 共通エフェクト（成功失敗に関わらず）
     if (eff.hpCost) this.state.hp = Math.max(0, this.state.hp - eff.hpCost);
     if (eff.hpRecover) this.state.hp = Math.min(this.state.maxHp, this.state.hp + eff.hpRecover);
     if (eff.cost) {
       this.state.balance -= eff.cost;
       this.state.periodExpense += eff.cost;
+    }
+    if (eff.monthlyExpenseUp) {
+      this.state.extraMonthlyExpense += eff.monthlyExpenseUp;
     }
 
     // 従業員関連
@@ -156,12 +203,18 @@ const App = {
       }
     }
     if (eff.satisfactionDown && this.state.employees.length > 0) {
-      this.state.employees[0].satisfaction = Math.max(0,
-        this.state.employees[0].satisfaction - eff.satisfactionDown);
+      for (const emp of this.state.employees) {
+        emp.satisfaction = Math.max(0, emp.satisfaction - eff.satisfactionDown);
+      }
     }
     if (eff.satisfactionUp && !eff.salaryUp && this.state.employees.length > 0) {
-      this.state.employees[0].satisfaction = Math.min(100,
-        this.state.employees[0].satisfaction + eff.satisfactionUp);
+      for (const emp of this.state.employees) {
+        emp.satisfaction = Math.min(100, emp.satisfaction + eff.satisfactionUp);
+      }
+    }
+    // 従業員退職
+    if (eff.employeeLeave && this.state.employees.length > 0) {
+      this.state.employees.splice(0, 1);
     }
 
     if (eff.delayMonths && this.state.receivables.length > 0) {
@@ -174,10 +227,19 @@ const App = {
       resultText += '\n\n追徴課税: Ƴ150,000…';
     }
 
+    // クライアント倒産ペナルティ
+    if (eff.cost === 100000 && this.state.totalRevenue > 5000000 && ev.id === 'ev_client_bankruptcy') {
+      // 弁護士費用100,000はすでにeff.costで処理済み、一部回収
+      this.state.balance += 150000;
+      this.state.periodRevenue += 150000;
+      this.state.totalRevenue += 150000;
+    }
+
     // イベント結果表示
     const overlay = document.querySelector('.event-overlay');
     if (overlay) overlay.remove();
     UI.append(UI.renderEventResult(resultText));
+    UI.updateStatusBar(this.state);
   },
 
   handleRandomEvent(ev) {
@@ -235,6 +297,13 @@ const App = {
     }
     const cardIndex = this.state.selectedCards[this.state.currentCardIndex];
     const card = this.state.hand[cardIndex];
+
+    // 選択肢が1つしかないカードは自動実行
+    if (card.costOptions.length === 1) {
+      this.selectCostOption(0);
+      return;
+    }
+
     UI.render(UI.renderCostSelect(this.state, card));
     UI.updateStatusBar(this.state);
   },
@@ -267,6 +336,15 @@ const App = {
         chance += DATA.EMPLOYEE_SKILLS.marketer.effect.salesBonus;
       }
       chance = Math.min(0.95, chance + (this.state.credit / 200));
+
+      // 制作が忙しいと営業に集中できない（ペナルティ）
+      const capacity = getProductionCapacity(this.state);
+      const activeCount = this.state.projects.filter(p => p.status === 'active').length;
+      const busyRatio = activeCount / Math.max(capacity, 1);
+      if (busyRatio >= 0.8) {
+        chance *= 0.7;  // 30%ダウン
+        results.push({ text: '（制作で忙しく、営業に集中できない…）', type: 'neutral' });
+      }
 
       if (Math.random() < chance) {
         const proj = generateProject(this.state, opt.projectTier || 0);
@@ -681,6 +759,7 @@ const App = {
     }
 
     // 残高表示
+    const { livingExpense, personalChange } = monthEndResult;
     monthEndHtml += `
       <div class="balance-display">
         <div class="balance-row">
@@ -689,9 +768,12 @@ const App = {
         </div>
         <div class="balance-row sub">
           <span>👤 個人資産</span>
-          <span>Ƴ${this.state.personalBalance.toLocaleString()}</span>
+          <span class="${this.state.personalBalance < 500000 ? 'negative' : ''}">Ƴ${this.state.personalBalance.toLocaleString()}</span>
         </div>
-        ${netSalary > 0 ? `<div class="balance-note">今月の手取り: +Ƴ${netSalary.toLocaleString()}</div>` : ''}
+        <div class="balance-note">
+          手取り +Ƴ${netSalary.toLocaleString()} − 生活費 Ƴ${livingExpense.toLocaleString()} =
+          <span class="${personalChange >= 0 ? 'positive' : 'negative'}">${personalChange >= 0 ? '+' : ''}Ƴ${personalChange.toLocaleString()}</span>
+        </div>
       </div>
     `;
 
@@ -787,10 +869,40 @@ const App = {
 
   /* ===== SNSシェア ===== */
   shareResult(rank, title, score) {
-    const text = encodeURIComponent(
-      `ナホン国で5年間起業してみた。\n結果: ${rank}ランク「${title}」\nスコア: ${score}\n#起業しろ #ナホン経営記`
-    );
-    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+    const state = this.state;
+    const rankEmoji = {
+      'EXIT': '👑',
+      'S': '🏆',
+      'A': '🌟',
+      'B': '✨',
+      'C': '💪',
+      'D': '😰',
+      'E': '😢',
+    };
+    const emoji = rankEmoji[rank] || '🎮';
+
+    const revenueM = (state.totalRevenue / 10000000).toFixed(1);
+    const creditStr = state.credit;
+    const empCount = state.employees.length;
+
+    const shareText = [
+      `${emoji}【起業しろ！〜ナホン成り上がり経営記〜】`,
+      ``,
+      `5年間の経営を終えた…！`,
+      `ランク: ${rank} 「${title}」`,
+      `スコア: ${score}点`,
+      ``,
+      `累計売上: ${revenueM}千万`,
+      `信用スコア: ${creditStr}`,
+      `従業員: ${empCount}人`,
+      ``,
+      `#起業しろ #ナホン経営記 #経営シム`,
+    ].join('\n');
+
+    // X (Twitter) でシェア
+    const encoded = encodeURIComponent(shareText);
+    const gameUrl = encodeURIComponent(window.location.href);
+    window.open(`https://twitter.com/intent/tweet?text=${encoded}&url=${gameUrl}`, '_blank');
   },
 };
 
