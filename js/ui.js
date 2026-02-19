@@ -358,7 +358,8 @@ const UI = {
 
       return `
         <div class="card ${isSelected ? 'selected' : ''} ${!canSelect && !isSelected ? 'disabled' : ''}"
-             onclick="${canSelect ? `App.selectCard(${i})` : ''}">
+             onclick="${canSelect || isSelected ? `App.selectCard(${i})` : ''}">
+          ${isSelected ? '<div class="card-deselect-hint">タップで解除</div>' : ''}
           <div class="card-header">
             <span class="card-name">${card.icon} ${card.name}</span>
             <span class="card-cat ${catClass}">${card.category}</span>
@@ -415,12 +416,9 @@ const UI = {
 
   /* ========== 見積もり画面 ========== */
   renderQuoteInput(state, project) {
-    const accAdvice = state.accountant !== 'none'
-      ? `<div class="advisor-box">
-           <div class="advisor-name">💬 ${DATA.ACCOUNTANTS[state.accountant].name}</div>
-           「Ƴ${project.basePrice.toLocaleString()}くらいが相場ですね。安すぎると赤字、高すぎると逃げられます。」
-         </div>`
-      : '';
+    const accAdvice = `<div class="monologue-box">
+           💭 （相場はƳ${project.basePrice.toLocaleString()}くらいか…安すぎると赤字になるし、高すぎると逃げられる。うまく見極めないと。）
+         </div>`;
 
     return `
       <div class="panel">

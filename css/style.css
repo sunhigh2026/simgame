@@ -178,6 +178,13 @@ body {
 .card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .card.selected { border-color: var(--green); background: #1a3a2a; }
 .card.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.card-deselect-hint {
+  font-size: 0.68rem;
+  color: var(--green);
+  text-align: right;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -794,6 +801,50 @@ body {
   color: var(--text2);
   margin-top: 8px;
   text-align: right;
+  cursor: pointer;
+  list-style: none;
+}
+.balance-note::-webkit-details-marker { display: none; }
+
+.living-breakdown {
+  margin-top: 6px;
+}
+.living-breakdown summary {
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-align: right;
+  cursor: pointer;
+  list-style: none;
+}
+.living-breakdown summary::-webkit-details-marker { display: none; }
+
+.living-detail {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+.living-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text2);
+  padding: 3px 0;
+}
+.living-detail-row.benefit {
+  color: var(--green);
+}
+
+/* モノローグボックス（相場独り言） */
+.monologue-box {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: var(--text2);
+  margin-bottom: 12px;
+  line-height: 1.6;
+  font-style: italic;
 }
 
 /* ========== ANIMATIONS ========== */

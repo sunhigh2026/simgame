@@ -3,7 +3,8 @@ function createInitialState(industry, companyType, capital, salary) {
   const ind = DATA.INDUSTRIES[industry];
   const comp = DATA.COMPANY_TYPES.find(c => c.id === companyType);
 
-  const balance = DATA.INITIAL_SAVINGS - comp.cost - ind.initialCost - capital;
+  // 個人残高 = 初期貯金 - 会社設立費用 - 業種初期費用 - 資本金
+  const personalBalance = DATA.INITIAL_SAVINGS - comp.cost - ind.initialCost - capital;
 
   return {
     // 基本
@@ -11,8 +12,8 @@ function createInitialState(industry, companyType, capital, salary) {
     industry: industry,
     companyType: companyType,
     capitalAmount: capital,
-    balance: balance + capital, // 会社口座 = 資本金
-    personalBalance: balance,   // 個人残高
+    balance: capital,           // 会社口座 = 資本金のみ
+    personalBalance: personalBalance,   // 個人残高
     salary: salary,            // 役員報酬（月額）
 
     // 時間
@@ -47,6 +48,8 @@ function createInitialState(industry, companyType, capital, salary) {
 
     // 月次の追加固定費
     extraMonthlyExpense: 0,
+    // 社宅制度（会社負担の住居費）
+    housingBenefit: 0,
     // 年間の税額控除
     annualTaxDeduction: 0,
     // 税務調査リスク
@@ -101,7 +104,10 @@ function generateProject(state, tier) {
   const maxIndex = Math.min(tier + 2, templates.length);
   const template = templates[Math.floor(Math.random() * maxIndex)];
 
-  const client = DATA.CLIENT_NAMES[Math.floor(Math.random() * DATA.CLIENT_NAMES.length)];
+  // 顧客名をランダム生成（接頭 + 接尾の組み合わせ）
+  const prefix = DATA.CLIENT_PREFIXES[Math.floor(Math.random() * DATA.CLIENT_PREFIXES.length)];
+  const suffix = DATA.CLIENT_SUFFIXES[Math.floor(Math.random() * DATA.CLIENT_SUFFIXES.length)];
+  const client = prefix + suffix;
 
   return {
     name: `${client} - ${template.name}`,
@@ -173,8 +179,12 @@ function processMonthEnd(state) {
   const netSalary = state.salary - personalSocialIns;
   state.personalBalance += netSalary;
 
-  // --- 個人の生活費 ---
-  const livingExpense = 150000;  // 月15万円の生活費
+  // --- 個人の生活費（社宅制度で住居費分が会社負担になる） ---
+  const baseRent = 80000;   // 想定家賃
+  const food = 40000;       // 食費
+  const other = 30000;      // その他
+  const actualRent = Math.max(0, baseRent - state.housingBenefit); // 社宅で家賃負担軽減
+  const livingExpense = actualRent + food + other;
   state.personalBalance -= livingExpense;
   log.push({ text: `役員報酬: Ƴ${salaryDeduction.toLocaleString()}（手取りƳ${netSalary.toLocaleString()}）`, type: 'neutral' });
 
@@ -247,15 +257,20 @@ function processMonthEnd(state) {
   // --- 残高記録 ---
   state.monthlyBalanceHistory.push({ period: state.period, month: state.month, balance: state.balance });
 
-  const livingExpenseValue = 150000;
-  const personalChange = netSalary - livingExpenseValue;
+  const personalChange = netSalary - livingExpense;
 
   return {
     log,
     totalIncome,
     totalExpense: totalDeduction,
     netSalary,
-    livingExpense: livingExpenseValue,
+    livingExpense,
+    livingBreakdown: {
+      rent: actualRent,
+      food,
+      other,
+      housingBenefit: state.housingBenefit,
+    },
     personalChange,
   };
 }

@@ -278,6 +278,13 @@ const App = {
   },
 
   selectCard(index) {
+    const alreadyIdx = this.state.selectedCards.indexOf(index);
+    if (alreadyIdx !== -1) {
+      // 選択済みなら解除
+      this.state.selectedCards.splice(alreadyIdx, 1);
+      UI.render(UI.renderCardSelect(this.state));
+      return;
+    }
     this.state.selectedCards.push(index);
     if (this.state.selectedCards.length >= DATA.CARDS_PLAY) {
       this.processNextCard();
@@ -420,8 +427,8 @@ const App = {
       if (accKey === 'advanced') results.push({ text: 'B/Sも表示されます', type: 'positive' });
     }
 
-    /* --- 節税 --- */
-    if (card.id === 'tax_shokibo' || card.id === 'tax_car') {
+    /* --- 節税カード全般（tax_shokibo, tax_car, tax_housing, tax_trip, tax_bonus等） --- */
+    if (card.category === 'tax' && card.id !== 'tax_accountant' && card.id !== 'tax_accountant_adv') {
       if (opt.effect) {
         if (opt.effect.monthlyExpense)
           this.state.extraMonthlyExpense += opt.effect.monthlyExpense;
@@ -431,7 +438,18 @@ const App = {
           this.state.credit += opt.effect.creditBonus;
         if (opt.effect.auditRisk)
           this.state.auditRisk += opt.effect.auditRisk;
-        results.push({ text: '節税策を導入しました', type: 'positive' });
+
+        // 社宅制度：個人の住居費負担軽減額を記録
+        if (card.id === 'tax_housing') {
+          this.state.housingBenefit = opt.effect.monthlyExpense || 0;
+          results.push({ text: `社宅制度を導入しました！`, type: 'positive' });
+          results.push({ text: `会社が月Ƴ${this.state.housingBenefit.toLocaleString()}負担→個人の生活費が減ります`, type: 'positive' });
+        } else {
+          results.push({ text: '節税策を導入しました', type: 'positive' });
+        }
+        if (opt.effect.taxDeduction) {
+          results.push({ text: `年間税控除 Ƴ${opt.effect.taxDeduction.toLocaleString()}`, type: 'positive' });
+        }
         if (opt.effect.auditRisk) {
           results.push({ text: '⚠ 税務調査リスクが上昇', type: 'negative' });
         }
@@ -758,8 +776,12 @@ const App = {
       `;
     }
 
-    // 残高表示
-    const { livingExpense, personalChange } = monthEndResult;
+    // 残高表示（生活費内訳付き）
+    const { livingExpense, livingBreakdown, personalChange } = monthEndResult;
+    const housingBenefitNote = livingBreakdown.housingBenefit > 0
+      ? `<div class="living-detail-row benefit">🏠 家賃（会社負担Ƴ${livingBreakdown.housingBenefit.toLocaleString()}適用）<span class="negative">Ƴ${livingBreakdown.rent.toLocaleString()}</span></div>`
+      : `<div class="living-detail-row">🏠 家賃・住居費<span class="negative">Ƴ${livingBreakdown.rent.toLocaleString()}</span></div>`;
+
     monthEndHtml += `
       <div class="balance-display">
         <div class="balance-row">
@@ -770,10 +792,18 @@ const App = {
           <span>👤 個人資産</span>
           <span class="${this.state.personalBalance < 500000 ? 'negative' : ''}">Ƴ${this.state.personalBalance.toLocaleString()}</span>
         </div>
-        <div class="balance-note">
-          手取り +Ƴ${netSalary.toLocaleString()} − 生活費 Ƴ${livingExpense.toLocaleString()} =
-          <span class="${personalChange >= 0 ? 'positive' : 'negative'}">${personalChange >= 0 ? '+' : ''}Ƴ${personalChange.toLocaleString()}</span>
-        </div>
+        <details class="living-breakdown">
+          <summary class="balance-note">
+            手取り +Ƴ${netSalary.toLocaleString()} − 生活費 Ƴ${livingExpense.toLocaleString()} =
+            <span class="${personalChange >= 0 ? 'positive' : 'negative'}">${personalChange >= 0 ? '+' : ''}Ƴ${personalChange.toLocaleString()}</span>
+            <span style="font-size:0.7rem;color:var(--text2);margin-left:4px;">▼内訳</span>
+          </summary>
+          <div class="living-detail">
+            ${housingBenefitNote}
+            <div class="living-detail-row">🍚 食費<span class="negative">Ƴ${livingBreakdown.food.toLocaleString()}</span></div>
+            <div class="living-detail-row">📦 その他<span class="negative">Ƴ${livingBreakdown.other.toLocaleString()}</span></div>
+          </div>
+        </details>
       </div>
     `;
 
